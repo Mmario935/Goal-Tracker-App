@@ -106,6 +106,6 @@ export function character(state) {
   const info = levelInfo(totalXp, CHAR_LEVEL_BASE);
   const title = [...TITLES].reverse().find(([min]) => info.level >= min)[1];
   const top = attrs.reduce((best, a) => (a.xp > best.xp ? a : best), attrs[0]);
-  const cls = top && top.xp > 0 ? top.cls : 'Sin clase';
-  return { attrs, totalXp, ...info, title, cls };
+  const arcana = top && top.xp > 0 ? top.arcana : 'Sin arcano';
+  return { attrs, totalXp, ...info, title, arcana };
 }

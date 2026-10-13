@@ -13,7 +13,7 @@ function defaults() {
   return {
     version: VERSION,
     createdAt: new Date().toISOString(),
-    profile: { name: 'Aventurero', avatar: '🧙' },
+    profile: { name: 'Novato', avatar: '🎭' },
     attributes: clone(DEFAULT_ATTRIBUTES),
     favorites: clone(DEFAULT_FAVORITES),
     logs: [],
@@ -46,11 +46,14 @@ function migrateV1(s) {
 function normalize(s) {
   const d = defaults();
   const src = (s.version ?? 1) < 2 ? migrateV1(s) : s;
+  const profile = { ...d.profile, ...src.profile };
+  if (profile.avatar === '🧙') profile.avatar = d.profile.avatar; // avatar por defecto anterior
   return {
     ...d,
     ...src,
-    profile: { ...d.profile, ...src.profile },
-    attributes: src.attributes?.length ? src.attributes : d.attributes,
+    profile,
+    // Los atributos no se editan desde la app: siempre se usan los del catálogo (colores y arcanos al día).
+    attributes: d.attributes,
     favorites: Array.isArray(src.favorites) ? src.favorites : d.favorites,
     logs: Array.isArray(src.logs) ? src.logs : [],
   };

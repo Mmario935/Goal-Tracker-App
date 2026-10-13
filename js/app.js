@@ -56,14 +56,17 @@ function deltaBadge(cur, prev) {
 }
 
 function heroCard(s, ch) {
-  return `<section class="card hero">
-    <div class="avatar">${esc(s.profile.avatar)}</div>
-    <div class="hero-body">
-      <div class="hero-name">${esc(s.profile.name)}</div>
-      <div class="hero-sub">${esc(ch.title)} · ${esc(ch.cls)}</div>
-      <div class="hero-level"><span>Nivel ${ch.level}</span><span class="muted">${fmtNum(ch.into)} / ${fmtNum(ch.needed)} XP</span></div>
-      ${bar(ch.pct, 'var(--gold)')}
+  return `<section class="hero">
+    <div class="hero-top">
+      <div class="avatar">${esc(s.profile.avatar)}</div>
+      <div class="hero-body">
+        <div class="hero-name">${esc(s.profile.name)}</div>
+        <div class="hero-sub"><span class="tag">${esc(ch.title)}</span><span class="arcana">Arcano · ${esc(ch.arcana)}</span></div>
+      </div>
+      <div class="hero-lv"><span>NV</span><b>${ch.level}</b></div>
     </div>
+    <div class="hero-level"><span>Siguiente nivel</span><span>${fmtNum(ch.into)} / ${fmtNum(ch.needed)} XP</span></div>
+    ${bar(ch.pct, '#fff')}
   </section>`;
 }
 
@@ -240,7 +243,7 @@ function viewStats(s) {
           </div>`;
         }).join('')}
       </div>
-      <p class="legend"><span class="sw" style="background:var(--accent)"></span>Actual <span class="sw prev"></span>Anterior (${fmtNum(prevSum.total)} XP)</p>
+      <p class="legend"><span class="sw" style="background:var(--red)"></span>Actual <span class="sw prev"></span>Anterior (${fmtNum(prevSum.total)} XP)</p>
     </section>
     <section class="card">
       <h2>Tiempo por categoría</h2>
@@ -361,7 +364,7 @@ function viewSettings(s) {
         <li>Sobre el óptimo diario de una subcategoría, el tiempo o las unidades extra valen la mitad.</li>
         <li>Rachas (días seguidos con la misma actividad): 3 días ×1.1 · 7 ×1.25 · 14 ×1.35 · 30 ×1.5.</li>
         <li>Del nivel N al N+1 de un atributo se necesitan ${ATTR_LEVEL_BASE} × N<sup>1.5</sup> XP.</li>
-        <li>Tu clase es la del atributo con más XP.</li>
+        <li>Tu arcano es el del atributo con más XP.</li>
       </ul>
     </section>`;
 }
@@ -636,7 +639,7 @@ function celebrate(log, mult, reduced) {
   ].filter(Boolean).join(' · ');
   const negative = Object.values(log.xp).some((v) => v < 0);
   toast(`${esc(log.emoji)} ${fxChips(log.xp, attrMap(s))} ${extra ? `<span class="muted small">${extra}</span>` : ''}
-    ${after > levelBefore ? `<div class="levelup">🎉 ¡Subiste a nivel ${after}!</div>` : ''}`, negative);
+    ${after > levelBefore ? `<div class="levelup">▲ ¡Nivel ${after}!</div>` : ''}`, negative);
   navigator.vibrate?.(15);
 }
 
@@ -725,8 +728,8 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('change', async (e) => {
-  if (e.target.id === 'profile-name') store.setProfile({ name: e.target.value.trim() || 'Aventurero' });
-  if (e.target.id === 'profile-avatar') store.setProfile({ avatar: e.target.value.trim() || '🧙' });
+  if (e.target.id === 'profile-name') store.setProfile({ name: e.target.value.trim() || 'Novato' });
+  if (e.target.id === 'profile-avatar') store.setProfile({ avatar: e.target.value.trim() || '🎭' });
   if (e.target.id === 'import-file') {
     const file = e.target.files[0];
     if (!file) return;

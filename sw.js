@@ -1,6 +1,6 @@
 // Service worker: primero red (para recibir actualizaciones), caché como respaldo sin conexión.
 // Sube CACHE cuando cambie la lista de archivos.
-const CACHE = 'rpg-metas-v2';
+const CACHE = 'rpg-metas-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -30,9 +30,25 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+const FONT_ORIGINS = ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'];
+
 self.addEventListener('fetch', (e) => {
   const { request } = e;
-  if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
+  if (request.method !== 'GET') return;
+  const { origin } = new URL(request.url);
+
+  // Tipografía de Google Fonts: caché primero, para que funcione sin conexión.
+  if (FONT_ORIGINS.includes(origin)) {
+    e.respondWith(
+      caches.match(request).then((hit) => hit || fetch(request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(request, copy));
+        return res;
+      })),
+    );
+    return;
+  }
+  if (origin !== location.origin) return;
   e.respondWith(
     fetch(request)
       .then((res) => {

@@ -41,7 +41,7 @@ export function radarSVG(items, max) {
     })
     .join('');
 
-  return `<svg viewBox="-30 0 ${size + 60} ${size}" class="radar" role="img" aria-label="Radar de atributos">
+  return `<svg viewBox="-56 0 ${size + 112} ${size}" class="radar" role="img" aria-label="Radar de atributos">
     ${rings}${axes}
     <polygon points="${data}" class="radar-data"/>
     ${dots}${labels}

@@ -1,22 +1,24 @@
-# 🛡️ RPG Metas
+# 🎭 RPG Metas
 
-App web (PWA) para hacer seguimiento de hábitos y metas como si fueran las estadísticas de un personaje de RPG.
+App web (PWA) para hacer seguimiento de hábitos y metas como si fueran las estadísticas de un personaje de JRPG.
 Cada actividad que registras da XP a uno o más atributos, que suben de nivel, y puedes comparar tu progreso por día, semana y mes.
 
 Está pensada para usarse en **iPhone** desde la pantalla de inicio. No tiene servidor, no usa cuentas y no tiene dependencias: los datos se guardan en tu propio dispositivo.
 
+La estética es de JRPG oscuro: paleta roja, negra y blanca, paneles con cortes en diagonal, etiquetas tipo recorte y tipografía condensada ([Anton](https://fonts.google.com/specimen/Anton), que queda guardada para funcionar sin conexión).
+
 ## Atributos
 
-| Atributo | Clase | Ejemplos |
+| Atributo | Arcano | Ejemplos |
 |---|---|---|
-| ❤️ Vitalidad | Guerrero | Dormir temprano, ejercicio |
-| 🧠 Intelecto | Mago | Curso de Databricks, leer |
-| ⚡ Disciplina | Monje | Levantarse temprano, jornada laboral |
-| 🛡️ Perseverancia | Paladín | Postulaciones, networking en LinkedIn |
-| 💰 Riqueza | Mercader | Cocinar en casa |
-| ✨ Espíritu | Bardo | Videojuegos, hobbies, amigos |
+| ❤️ Vitalidad | El Carro | Dormir temprano, ejercicio |
+| 🧠 Intelecto | El Mago | Curso de Databricks, leer |
+| ⚡ Disciplina | El Emperador | Levantarse temprano, jornada laboral |
+| 🛡️ Perseverancia | La Fuerza | Postulaciones, networking en LinkedIn |
+| 💰 Riqueza | La Fortuna | Cocinar en casa |
+| ✨ Espíritu | La Estrella | Videojuegos, hobbies, amigos |
 
-Tu **clase** es la del atributo con más XP, y tu **título** (Novato → Leyenda) depende de tu nivel general.
+Tu **arcano** es el del atributo con más XP. Tu **título** depende de tu nivel general: Novato → Despertado → Rebelde → Infiltrado → Comodín → Arcano Mayor → Leyenda.
 
 ## Modelo: categoría → subcategoría → actividad
 
@@ -85,7 +87,7 @@ sw.js                 Service worker (funciona sin conexión)
 css/styles.css        Estilos (mobile-first, áreas seguras del iPhone)
 js/app.js             Vistas, eventos y editor de actividades
 js/data.js            Atributos, categorías, subcategorías y puntajes
-js/game.js            XP, óptimo diario, niveles, rachas y clase
+js/game.js            XP, óptimo diario, niveles, rachas y arcano
 js/stats.js           Rangos de día/semana/mes y agregaciones
 js/store.js           Persistencia en localStorage, exportar e importar
 js/charts.js          Gráfico de radar en SVG

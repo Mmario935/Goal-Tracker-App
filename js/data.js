@@ -7,17 +7,17 @@
 // optimal: cantidad diaria (minutos o unidades) sobre la cual cada extra vale la mitad.
 
 export const DEFAULT_ATTRIBUTES = [
-  { id: 'vit', name: 'Vitalidad', emoji: '❤️', color: '#f05252', cls: 'Guerrero' },
-  { id: 'int', name: 'Intelecto', emoji: '🧠', color: '#4f8cff', cls: 'Mago' },
-  { id: 'dis', name: 'Disciplina', emoji: '⚡', color: '#f5b622', cls: 'Monje' },
-  { id: 'per', name: 'Perseverancia', emoji: '🛡️', color: '#a274ff', cls: 'Paladín' },
-  { id: 'riq', name: 'Riqueza', emoji: '💰', color: '#2fbf71', cls: 'Mercader' },
-  { id: 'esp', name: 'Espíritu', emoji: '✨', color: '#ff6fb5', cls: 'Bardo' },
+  { id: 'vit', name: 'Vitalidad', emoji: '❤️', color: '#ff1f3d', arcana: 'El Carro' },
+  { id: 'int', name: 'Intelecto', emoji: '🧠', color: '#3ec5ff', arcana: 'El Mago' },
+  { id: 'dis', name: 'Disciplina', emoji: '⚡', color: '#ffd400', arcana: 'El Emperador' },
+  { id: 'per', name: 'Perseverancia', emoji: '🛡️', color: '#9b5cff', arcana: 'La Fuerza' },
+  { id: 'riq', name: 'Riqueza', emoji: '💰', color: '#f2f2f2', arcana: 'La Fortuna' },
+  { id: 'esp', name: 'Espíritu', emoji: '✨', color: '#ff4fa0', arcana: 'La Estrella' },
 ];
 
 export const CATEGORIES = [
   {
-    id: 'estudio', name: 'Estudio', emoji: '📚', color: '#4f8cff',
+    id: 'estudio', name: 'Estudio', emoji: '📚', color: '#3ec5ff',
     subs: [
       { id: 'curso', name: 'Curso / formación', emoji: '🎓', mode: 'time', rate: { int: 20, dis: 6 }, optimal: 180 },
       { id: 'lectura', name: 'Lectura', emoji: '📖', mode: 'time', rate: { int: 12, esp: 4 }, optimal: 120 },
@@ -26,7 +26,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'carrera', name: 'Carrera', emoji: '💼', color: '#a274ff',
+    id: 'carrera', name: 'Carrera', emoji: '💼', color: '#9b5cff',
     subs: [
       { id: 'postulacion', name: 'Postulación', emoji: '📨', mode: 'count', unit: 'postulación', units: 'postulaciones', rate: { per: 12, dis: 3 }, optimal: 10 },
       { id: 'networking', name: 'Networking / contacto', emoji: '🤝', mode: 'count', unit: 'contacto', units: 'contactos', rate: { per: 8, esp: 3 }, optimal: 5 },
@@ -35,7 +35,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'deporte', name: 'Deporte', emoji: '🏃', color: '#f05252',
+    id: 'deporte', name: 'Deporte', emoji: '🏃', color: '#ff1f3d',
     subs: [
       { id: 'cardio', name: 'Cardio', emoji: '🚴', mode: 'time', rate: { vit: 25, dis: 8 }, optimal: 90 },
       { id: 'fuerza', name: 'Fuerza / gimnasio', emoji: '🏋️', mode: 'time', rate: { vit: 22, dis: 10 }, optimal: 90 },
@@ -44,7 +44,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'hogar', name: 'Hogar', emoji: '🏠', color: '#2fbf71',
+    id: 'hogar', name: 'Hogar', emoji: '🏠', color: '#f2f2f2',
     subs: [
       { id: 'cocinar', name: 'Cocinar', emoji: '🍳', mode: 'count', unit: 'comida', units: 'comidas', rate: { riq: 10, vit: 5 }, optimal: 3 },
       { id: 'aseo', name: 'Aseo / limpieza', emoji: '🧹', mode: 'time', rate: { dis: 12, esp: 4 }, optimal: 120 },
@@ -53,7 +53,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'rutina', name: 'Descanso y rutina', emoji: '🌙', color: '#f5b622',
+    id: 'rutina', name: 'Descanso y rutina', emoji: '🌙', color: '#ffd400',
     subs: [
       { id: 'madrugar', name: 'Levantarse temprano', emoji: '⏰', mode: 'check', rate: { dis: 10, vit: 2 } },
       { id: 'dormir', name: 'Dormir temprano', emoji: '😴', mode: 'check', rate: { vit: 10, dis: 3 } },
@@ -61,7 +61,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'ocio', name: 'Ocio', emoji: '🎮', color: '#ff6fb5',
+    id: 'ocio', name: 'Ocio', emoji: '🎮', color: '#ff4fa0',
     subs: [
       { id: 'videojuegos', name: 'Videojuegos', emoji: '🎮', mode: 'time', rate: { esp: 10, int: 2 }, optimal: 120 },
       { id: 'pantalla', name: 'Series / películas', emoji: '🎬', mode: 'time', rate: { esp: 8 }, optimal: 120 },
@@ -70,7 +70,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'tentacion', name: 'Tentaciones', emoji: '😈', color: '#ff5c6c',
+    id: 'tentacion', name: 'Tentaciones', emoji: '😈', color: '#8a0012',
     subs: [
       { id: 'trasnochar', name: 'Dormir tarde', emoji: '🥱', mode: 'check', rate: { vit: -8, dis: -4 } },
       { id: 'delivery', name: 'Delivery / gasto impulsivo', emoji: '🛵', mode: 'count', unit: 'vez', units: 'veces', rate: { riq: -8 } },
@@ -87,7 +87,7 @@ export const SUBS = new Map(
   })),
 );
 
-const OTHER_CAT = { id: 'otros', name: 'Otros', emoji: '📦', color: '#a59dc2', subs: [] };
+const OTHER_CAT = { id: 'otros', name: 'Otros', emoji: '📦', color: '#8c8c8c', subs: [] };
 const OTHER_SUB = { id: 'otros', name: 'Otros', emoji: '📦', mode: 'count', unit: 'vez', units: 'veces', rate: {}, cat: OTHER_CAT };
 
 export const subInfo = (id) => SUBS.get(id) ?? OTHER_SUB;
@@ -113,10 +113,10 @@ export const TIME_PRESETS = [15, 30, 45, 60, 90, 120, 180];
 // Títulos según el nivel del personaje (nivel mínimo → título).
 export const TITLES = [
   [1, 'Novato'],
-  [3, 'Aprendiz'],
-  [5, 'Aventurero'],
-  [8, 'Veterano'],
-  [12, 'Campeón'],
-  [16, 'Héroe'],
+  [3, 'Despertado'],
+  [5, 'Rebelde'],
+  [8, 'Infiltrado'],
+  [12, 'Comodín'],
+  [16, 'Arcano Mayor'],
   [20, 'Leyenda'],
 ];
