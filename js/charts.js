@@ -36,7 +36,7 @@ export function radarSVG(items, max) {
       const cos = Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / n);
       const anchor = Math.abs(cos) < 0.2 ? 'middle' : cos > 0 ? 'start' : 'end';
       return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" class="radar-label">
-        <tspan>${esc(it.emoji)} ${esc(it.label)}</tspan>
+        <tspan>${esc(it.label)}</tspan>
         <tspan x="${x.toFixed(1)}" dy="15" class="radar-value">Nv ${Math.floor(it.value)}</tspan></text>`;
     })
     .join('');

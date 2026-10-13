@@ -1,5 +1,6 @@
 import * as store from './store.js';
 import { radarSVG } from './charts.js';
+import { AVATARS, ICONS, icon } from './icons.js';
 import { CATEGORIES, SUBS, TIME_PRESETS, subInfo } from './data.js';
 import {
   ATTR_LEVEL_BASE, character, computeLogXp, currentStreak, datesByKey, isNegativeSub,
@@ -26,7 +27,7 @@ const attrMap = (s) => Object.fromEntries(s.attributes.map((a) => [a.id, a]));
 function fxChips(xp, attrs, suffix = '') {
   return Object.entries(xp)
     .filter(([, v]) => v)
-    .map(([a, v]) => `<span class="fx ${v < 0 ? 'fx-neg' : ''}">${esc(attrs[a]?.emoji ?? a)}${fmtSigned(v)}${suffix}</span>`)
+    .map(([a, v]) => `<span class="fx ${v < 0 ? 'fx-neg' : ''}" style="--c:${esc(attrs[a]?.color ?? '#fff')}">${attrs[a] ? icon(attrs[a].icon) : esc(a)}${fmtSigned(v)}${suffix}</span>`)
     .join('');
 }
 
@@ -58,7 +59,7 @@ function deltaBadge(cur, prev) {
 function heroCard(s, ch) {
   return `<section class="hero">
     <div class="hero-top">
-      <div class="avatar">${esc(s.profile.avatar)}</div>
+      <div class="avatar">${icon(s.profile.avatar)}</div>
       <div class="hero-body">
         <div class="hero-name">${esc(s.profile.name)}</div>
         <div class="hero-sub"><span class="tag">${esc(ch.title)}</span><span class="arcana">Arcano · ${esc(ch.arcana)}</span></div>
@@ -94,7 +95,7 @@ function viewToday(s) {
     const streak = neg ? 0 : streakOf(f);
     const amount = t && f.info.mode !== 'check' ? ` · ${amountLabel(f.info, t.qty)}` : '';
     return `<button class="pill ${t ? 'on' : ''} ${neg ? 'neg' : ''}" data-action="fav" data-id="${esc(f.id)}">
-      ${esc(f.emoji)} ${esc(f.name)}${amount}${t && f.info.mode === 'check' ? ' ✓' : ''}${streak >= 2 ? ` <span class="streak">🔥${streak}</span>` : ''}
+      ${icon(f.icon)} ${esc(f.name)}${amount}${t && f.info.mode === 'check' ? ' ✓' : ''}${streak >= 2 ? ` <span class="streak">${icon('flame')}${streak}</span>` : ''}
     </button>`;
   };
 
@@ -102,7 +103,7 @@ function viewToday(s) {
     const t = todayOf(f);
     const streak = streakOf(f);
     return `<button class="tile ${t ? 'on' : ''}" data-action="fav" data-id="${esc(f.id)}" style="--c:${esc(f.info.cat.color)}">
-      <span class="tile-top"><span class="tile-emoji">${esc(f.emoji)}</span>${streak >= 2 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
+      <span class="tile-top">${icon(f.icon, 'ico tile-ico')}${streak >= 2 ? `<span class="streak">${icon('flame')}${streak}</span>` : ''}</span>
       <span class="tile-name">${esc(f.name)}</span>
       <span class="tile-sub">${t ? `<strong>${esc(amountLabel(f.info, t.qty))}</strong>` : esc(modeLabel(f.info))}</span>
     </button>`;
@@ -111,7 +112,7 @@ function viewToday(s) {
   const logRow = (l) => {
     const sub = subInfo(l.sub);
     return `<li class="log-row">
-      <span class="log-emoji">${esc(l.emoji)}</span>
+      ${icon(l.icon, 'ico log-ico')}
       <span class="log-body">
         <span class="log-name">${esc(l.name)} <span class="muted small">${esc(amountLabel(sub, l.qty))}</span></span>
         ${l.note ? `<span class="log-note">${esc(l.note)}</span>` : ''}
@@ -129,7 +130,7 @@ function viewToday(s) {
     </div>
     <section class="card day-summary">
       <div class="day-xp"><span class="muted">XP del día</span><strong class="${day.total < 0 ? 'neg-text' : ''}">${fmtSigned(day.total)}</strong></div>
-      <div class="muted small">⏱ ${day.minutes ? `${fmtMinutes(day.minutes)} invertidos` : 'Aún sin tiempo registrado'}</div>
+      <div class="muted small time-line">${icon('stopwatch')} ${day.minutes ? `${fmtMinutes(day.minutes)} invertidos` : 'Aún sin tiempo registrado'}</div>
       <div class="chips">${fxChips(day.by, attrs)}</div>
     </section>
 
@@ -137,7 +138,7 @@ function viewToday(s) {
 
     ${routine.length ? `<h3 class="group-title">Rutina diaria</h3><div class="pills">${routine.map((f) => pill(f)).join('')}</div>` : ''}
     ${regular.length ? `<h3 class="group-title">Mis actividades</h3><div class="tiles">${regular.map(tile).join('')}</div>` : ''}
-    ${temptations.length ? `<h3 class="group-title neg-title">😈 Tentaciones <span class="muted">(restan XP)</span></h3>
+    ${temptations.length ? `<h3 class="group-title neg-title">${icon('devil-mask')} Tentaciones <span class="muted">(restan XP)</span></h3>
       <div class="pills">${temptations.map((f) => pill(f, true)).join('')}</div>` : ''}
 
     <section class="card">
@@ -151,14 +152,14 @@ function viewToday(s) {
 
 function streakLabel(s, key) {
   const fav = store.favoriteById(key);
-  if (fav) return { emoji: fav.emoji, name: fav.name };
+  if (fav) return { icon: fav.icon, name: fav.name };
   const sub = SUBS.get(key);
-  return sub ? { emoji: sub.emoji, name: sub.name } : null;
+  return sub ? { icon: sub.icon, name: sub.name } : null;
 }
 
 function viewCharacter(s) {
   const ch = character(s);
-  const values = ch.attrs.map((a) => ({ label: a.name, emoji: a.emoji, color: a.color, value: a.level + a.pct - 1 }));
+  const values = ch.attrs.map((a) => ({ label: a.name, color: a.color, value: a.level + a.pct - 1 }));
   const max = Math.max(4, Math.ceil(Math.max(...values.map((v) => v.value)) + 1));
   const today = todayKey();
   const streaks = [...datesByKey(s.logs)]
@@ -174,14 +175,14 @@ function viewCharacter(s) {
     </section>
     <section class="attr-grid">
       ${ch.attrs.map((a) => `<div class="card attr-card" style="--c:${esc(a.color)}">
-        <div class="attr-head"><span>${esc(a.emoji)} ${esc(a.name)}</span><strong>Nv ${a.level}</strong></div>
+        <div class="attr-head"><span>${icon(a.icon)} ${esc(a.name)}</span><strong>Nv ${a.level}</strong></div>
         ${bar(a.pct, a.color)}
         <div class="muted small">${fmtNum(a.into)} / ${fmtNum(a.needed)} XP · total ${fmtNum(a.xp)}</div>
       </div>`).join('')}
     </section>
     <section class="card">
       <h2>Rachas activas</h2>
-      ${streaks.length ? `<ul class="streak-list">${streaks.map(({ label, n }) => `<li><span>${esc(label.emoji)} ${esc(label.name)}</span><span class="streak">🔥 ${n} días</span></li>`).join('')}</ul>`
+      ${streaks.length ? `<ul class="streak-list">${streaks.map(({ label, n }) => `<li><span>${icon(label.icon)} ${esc(label.name)}</span><span class="streak">${icon('flame')} ${n} días</span></li>`).join('')}</ul>`
         : '<p class="muted">Repite una actividad dos días seguidos para empezar una racha. Con 3, 7, 14 y 30 días ganas multiplicadores de XP.</p>'}
     </section>`;
 }
@@ -235,7 +236,7 @@ function viewStats(s) {
           const c = curSum.by[a.id] || 0;
           const p = prevSum.by[a.id] || 0;
           return `<div class="cmp-row">
-            <div class="cmp-head"><span>${esc(a.emoji)} ${esc(a.name)}</span><span><strong>${fmtSigned(c)}</strong> ${deltaBadge(c, p)}</span></div>
+            <div class="cmp-head"><span style="--c:${esc(a.color)}">${icon(a.icon)} ${esc(a.name)}</span><span><strong>${fmtSigned(c)}</strong> ${deltaBadge(c, p)}</span></div>
             <div class="cmp-bars">
               <div class="cmp-bar" style="width:${(Math.max(0, c) / maxAttr) * 100}%;background:${esc(a.color)}"></div>
               <div class="cmp-bar prev" style="width:${(Math.max(0, p) / maxAttr) * 100}%"></div>
@@ -253,7 +254,7 @@ function viewStats(s) {
           const pm = prevSum.byCat[c.id]?.minutes || 0;
           const count = curSum.byCat[c.id]?.count || 0;
           return `<div class="cmp-row">
-            <div class="cmp-head"><span>${esc(c.emoji)} ${esc(c.name)}</span><span><strong>${cm ? fmtHours(cm) : count ? `${count} reg.` : '—'}</strong> ${cm || pm ? deltaBadge(cm, pm) : ''}</span></div>
+            <div class="cmp-head"><span style="--c:${esc(c.color)}">${icon(c.icon)} ${esc(c.name)}</span><span><strong>${cm ? fmtHours(cm) : count ? `${count} reg.` : '—'}</strong> ${cm || pm ? deltaBadge(cm, pm) : ''}</span></div>
             <div class="cmp-bars">
               <div class="cmp-bar" style="width:${(cm / maxMin) * 100}%;background:${esc(c.color)}"></div>
               <div class="cmp-bar prev" style="width:${(pm / maxMin) * 100}%"></div>
@@ -276,7 +277,7 @@ function viewStats(s) {
     <section class="card">
       <h2>Lo que más te aportó</h2>
       ${top.length ? `<ul class="top-list">${top.map((n) => `<li>
-          <span>${esc(n.emoji)} ${esc(n.name)} <span class="muted small">${esc(n.sub.mode === 'check' ? `${n.count} día${n.count === 1 ? '' : 's'}` : amountLabel(n.sub, n.qty))}</span></span>
+          <span>${icon(n.icon)} ${esc(n.name)} <span class="muted small">${esc(n.sub.mode === 'check' ? `${n.count} día${n.count === 1 ? '' : 's'}` : amountLabel(n.sub, n.qty))}</span></span>
           <span class="count ${n.xp < 0 ? 'neg' : ''}">${fmtSigned(n.xp)} XP</span></li>`).join('')}</ul>`
         : '<p class="muted">Sin registros en este periodo.</p>'}
     </section>
@@ -312,7 +313,9 @@ function viewSettings(s) {
   return `<section class="card">
       <h2>Perfil</h2>
       <label class="field"><span>Nombre del personaje</span><input id="profile-name" value="${esc(s.profile.name)}" maxlength="30"></label>
-      <label class="field"><span>Avatar (emoji)</span><input id="profile-avatar" value="${esc(s.profile.avatar)}" maxlength="4"></label>
+      <div class="field"><span>Avatar</span>
+        <div class="icon-grid avatars">${AVATARS.map((k) => `<button type="button" class="icon-opt ${k === s.profile.avatar ? 'on' : ''}" data-action="avatar" data-id="${k}" aria-label="${k}">${icon(k)}</button>`).join('')}</div>
+      </div>
     </section>
     <section class="card">
       <div class="row-between"><h2>Mis actividades</h2><button class="btn small" data-action="edit-fav" data-id="">+ Nueva</button></div>
@@ -321,7 +324,7 @@ function viewSettings(s) {
         ${favs.map((f) => {
           const sub = subInfo(f.sub);
           return `<li><button data-action="edit-fav" data-id="${esc(f.id)}">
-            <span>${esc(f.emoji)} ${esc(f.name)}</span>
+            <span>${icon(f.icon)} ${esc(f.name)}</span>
             <span class="muted small">${esc(sub.cat.name)} › ${esc(sub.name)} · ${esc(modeLabel(sub))}</span></button></li>`;
         }).join('')}
       </ul>
@@ -330,10 +333,10 @@ function viewSettings(s) {
       <h2>Tabla de puntajes</h2>
       <p class="muted small">XP base de cada subcategoría. Sobre el óptimo diario, el extra vale la mitad.</p>
       ${CATEGORIES.map((c) => `<details class="score-cat">
-        <summary>${esc(c.emoji)} ${esc(c.name)}</summary>
+        <summary style="--c:${esc(c.color)}">${icon(c.icon)} ${esc(c.name)}</summary>
         <ul class="score-list">
           ${c.subs.map((sub) => `<li>
-            <span>${esc(sub.emoji)} ${esc(sub.name)}<span class="muted small"> · ${esc(modeLabel(sub))}${sub.optimal ? ` · óptimo ${sub.mode === 'time' ? fmtMinutes(sub.optimal) : sub.optimal}` : ''}</span></span>
+            <span>${icon(sub.icon)} ${esc(sub.name)}<span class="muted small"> · ${esc(modeLabel(sub))}${sub.optimal ? ` · óptimo ${sub.mode === 'time' ? fmtMinutes(sub.optimal) : sub.optimal}` : ''}</span></span>
             <span class="act-fx">${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</span>
           </li>`).join('')}
         </ul>
@@ -343,8 +346,8 @@ function viewSettings(s) {
       <h2>Datos</h2>
       <p class="muted small">Tus datos se guardan solo en este dispositivo. Exporta un respaldo de vez en cuando.</p>
       <div class="btn-row">
-        <button class="btn" data-action="export">⬇️ Exportar</button>
-        <label class="btn">⬆️ Importar<input type="file" id="import-file" accept="application/json,.json" hidden></label>
+        <button class="btn" data-action="export">Exportar</button>
+        <label class="btn">Importar<input type="file" id="import-file" accept="application/json,.json" hidden></label>
       </div>
       <button class="btn danger" data-action="reset">Reiniciar todo</button>
     </section>
@@ -366,6 +369,7 @@ function viewSettings(s) {
         <li>Del nivel N al N+1 de un atributo se necesitan ${ATTR_LEVEL_BASE} × N<sup>1.5</sup> XP.</li>
         <li>Tu arcano es el del atributo con más XP.</li>
       </ul>
+      <p class="muted small credits">Íconos de <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite y colaboradores), licencia <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.</p>
     </section>`;
 }
 
@@ -397,7 +401,7 @@ function previewHTML() {
   const key = sheet.favId || sheet.sub;
   const { xp, mult, reduced } = computeLogXp(s.logs, sub, sub.mode === 'check' ? 1 : sheet.qty || 0, ui.date, key);
   const notes = [
-    mult > 1 ? `🔥 racha ×${mult}` : '',
+    mult > 1 ? `${icon('flame')} racha ×${mult}` : '',
     reduced ? 'parte sobre el óptimo diario (×0.5)' : '',
   ].filter(Boolean).join(' · ');
   return `<span class="muted small">Ganarás</span> ${fxChips(xp, attrMap(s)) || '—'} ${notes ? `<div class="muted small">${notes}</div>` : ''}`;
@@ -412,14 +416,14 @@ function renderSheet() {
     body = `<h2>¿Qué hiciste?</h2>
       <div class="cat-grid">
         ${CATEGORIES.map((c) => `<button class="cat-btn" data-s="cat" data-id="${c.id}" style="--c:${esc(c.color)}">
-          <span class="cat-emoji">${esc(c.emoji)}</span>${esc(c.name)}</button>`).join('')}
+          ${icon(c.icon, 'ico cat-ico')}${esc(c.name)}</button>`).join('')}
       </div>`;
   } else if (sheet.step === 2) {
     const cat = CATEGORIES.find((c) => c.id === sheet.cat);
-    body = `<div class="sheet-head"><button class="icon-btn" data-s="back" aria-label="Volver">‹</button><h2>${esc(cat.emoji)} ${esc(cat.name)}</h2></div>
+    body = `<div class="sheet-head"><button class="icon-btn" data-s="back" aria-label="Volver">‹</button><h2>${icon(cat.icon)} ${esc(cat.name)}</h2></div>
       <div class="sub-list">
         ${cat.subs.map((sub) => `<button class="sub-btn" data-s="sub" data-id="${cat.id}.${sub.id}">
-          <span class="act-emoji">${esc(sub.emoji)}</span>
+          ${icon(sub.icon, 'ico act-ico')}
           <span class="act-body"><span class="act-name">${esc(sub.name)}</span>
           <span class="muted small">${esc(modeLabel(sub))}</span>
           <span class="act-fx">${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</span></span>
@@ -437,11 +441,11 @@ function renderSheet() {
 
     body = `<div class="sheet-head">
         ${sheet.fromTile ? '' : '<button class="icon-btn" data-s="back" aria-label="Volver">‹</button>'}
-        <h2>${esc(fav ? fav.emoji : sub.emoji)} ${esc(fav ? fav.name : sub.name)}</h2>
+        <h2>${icon(fav ? fav.icon : sub.icon)} ${esc(fav ? fav.name : sub.name)}</h2>
       </div>
       <p class="muted small sheet-path">${esc(sub.cat.name)} › ${esc(sub.name)} · ${esc(modeLabel(sub))} ${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</p>
       ${ownFavs.length ? `<div class="field"><span>¿Es una de tus actividades?</span>
-        <div class="chip-select">${ownFavs.map((f) => `<button type="button" class="chip-opt" data-s="pick-fav" data-id="${esc(f.id)}">${esc(f.emoji)} ${esc(f.name)}</button>`).join('')}</div>
+        <div class="chip-select">${ownFavs.map((f) => `<button type="button" class="chip-opt" data-s="pick-fav" data-id="${esc(f.id)}">${icon(f.icon)} ${esc(f.name)}</button>`).join('')}</div>
       </div>` : ''}
       ${fav ? '' : `<label class="field"><span>${ownFavs.length ? 'O escribe otro nombre (opcional)' : 'Nombre (opcional)'}</span>
         <input name="name" list="name-suggestions" value="${esc(sheet.name)}" placeholder="${esc(sub.name)}" maxlength="40" autocomplete="off">
@@ -472,7 +476,7 @@ function saveSheet() {
   const sub = subInfo(sheet.sub);
   let favId = sheet.favId;
   let name = sheet.name.trim();
-  let emoji = null;
+  let iconId = null;
 
   if (!favId && name) {
     // Si el nombre coincide con una actividad guardada de la misma subcategoría, se vincula (mantiene la racha).
@@ -480,16 +484,16 @@ function saveSheet() {
     if (match) favId = match.id;
   }
   if (!favId && sheet.saveFav) {
-    favId = store.upsertFavorite({ sub: sub.id, name: name || sub.name, emoji: sub.emoji }).id;
+    favId = store.upsertFavorite({ sub: sub.id, name: name || sub.name, icon: sub.icon }).id;
   }
   if (favId) {
     const fav = store.favoriteById(favId);
     name = fav.name;
-    emoji = fav.emoji;
+    iconId = fav.icon;
   }
 
   const { log, mult, reduced } = store.addLog({
-    sub: sub.id, favId, name, emoji, qty: sheet.qty, note: sheet.note.trim(), date: ui.date,
+    sub: sub.id, favId, name, icon: iconId, qty: sheet.qty, note: sheet.note.trim(), date: ui.date,
   });
   dialog.close();
   celebrate(log, mult, reduced);
@@ -570,19 +574,22 @@ dialog.addEventListener('close', () => {
 // ---------- Editor de actividades frecuentes ----------
 
 function openFavEditor(id) {
-  const fav = id ? store.favoriteById(id) : { id: '', sub: 'estudio.curso', name: '', emoji: '' };
+  const fav = id ? store.favoriteById(id) : { id: '', sub: 'estudio.curso', name: '' };
+  let chosenIcon = fav.icon || subInfo(fav.sub).icon;
+  // Mientras no se elija un ícono a mano, sigue al de la subcategoría.
+  let iconTouched = Boolean(id);
   dialog.innerHTML = `<form class="sheet" id="fav-form">
     <h2>${id ? 'Editar' : 'Nueva'} actividad</h2>
     <label class="field"><span>Subcategoría (define el puntaje)</span>
       <select name="sub">
-        ${CATEGORIES.map((c) => `<optgroup label="${esc(c.emoji)} ${esc(c.name)}">
-          ${c.subs.map((sub) => `<option value="${c.id}.${sub.id}" ${fav.sub === `${c.id}.${sub.id}` ? 'selected' : ''}>${esc(sub.emoji)} ${esc(sub.name)} (${esc(modeLabel({ ...sub }))})</option>`).join('')}
+        ${CATEGORIES.map((c) => `<optgroup label="${esc(c.name)}">
+          ${c.subs.map((sub) => `<option value="${c.id}.${sub.id}" ${fav.sub === `${c.id}.${sub.id}` ? 'selected' : ''}>${esc(sub.name)} (${esc(modeLabel({ ...sub }))})</option>`).join('')}
         </optgroup>`).join('')}
       </select>
     </label>
-    <div class="field-row">
-      <label class="field emoji-field"><span>Emoji</span><input name="emoji" value="${esc(fav.emoji)}" maxlength="4" placeholder="${esc(subInfo(fav.sub).emoji)}"></label>
-      <label class="field grow"><span>Nombre</span><input name="name" value="${esc(fav.name)}" maxlength="40" placeholder="Ej.: Curso Databricks" required></label>
+    <label class="field"><span>Nombre</span><input name="name" value="${esc(fav.name)}" maxlength="40" placeholder="Ej.: Curso Databricks" required></label>
+    <div class="field"><span>Ícono</span>
+      <div class="icon-grid">${Object.keys(ICONS).map((k) => `<button type="button" class="icon-opt ${k === chosenIcon ? 'on' : ''}" data-f="icon" data-id="${k}" aria-label="${k}">${icon(k)}</button>`).join('')}</div>
     </div>
     <div class="btn-row">
       ${id ? '<button type="button" class="btn danger" data-f="archive">Eliminar</button>' : ''}
@@ -592,9 +599,12 @@ function openFavEditor(id) {
     </div>
   </form>`;
   const form = dialog.querySelector('form');
-  const emojiInput = form.elements.emoji;
+  const selectIcon = (k) => {
+    chosenIcon = k;
+    form.querySelectorAll('.icon-opt').forEach((b) => b.classList.toggle('on', b.dataset.id === k));
+  };
   form.elements.sub.addEventListener('change', (e) => {
-    emojiInput.placeholder = subInfo(e.target.value).emoji;
+    if (!iconTouched) selectIcon(subInfo(e.target.value).icon);
   });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -604,12 +614,17 @@ function openFavEditor(id) {
       ...fav,
       sub: sub.id,
       name: f.get('name').trim() || sub.name,
-      emoji: f.get('emoji').trim() || sub.emoji,
+      icon: chosenIcon,
     });
     dialog.close();
   });
   form.addEventListener('click', (e) => {
-    const action = e.target.closest('[data-f]')?.dataset.f;
+    const target = e.target.closest('[data-f]');
+    const action = target?.dataset.f;
+    if (action === 'icon') {
+      iconTouched = true;
+      selectIcon(target.dataset.id);
+    }
     if (action === 'close') dialog.close();
     if (action === 'archive' && confirm(`¿Eliminar “${fav.name}”? Tu historial se conserva.`)) {
       store.archiveFavorite(fav.id);
@@ -634,11 +649,11 @@ function celebrate(log, mult, reduced) {
   const s = store.getState();
   const after = character(s).level;
   const extra = [
-    mult > 1 ? `🔥${log.streak} ×${mult}` : '',
+    mult > 1 ? `${icon('flame')}${log.streak} ×${mult}` : '',
     reduced ? 'sobre el óptimo' : '',
   ].filter(Boolean).join(' · ');
   const negative = Object.values(log.xp).some((v) => v < 0);
-  toast(`${esc(log.emoji)} ${fxChips(log.xp, attrMap(s))} ${extra ? `<span class="muted small">${extra}</span>` : ''}
+  toast(`${icon(log.icon)} ${fxChips(log.xp, attrMap(s))} ${extra ? `<span class="muted small">${extra}</span>` : ''}
     ${after > levelBefore ? `<div class="levelup">▲ ¡Nivel ${after}!</div>` : ''}`, negative);
   navigator.vibrate?.(15);
 }
@@ -650,7 +665,7 @@ function tapFavorite(id) {
     const existing = store.findLog(fav.id, ui.date);
     if (existing) {
       store.removeLog(existing.id);
-      toast(`Deshecho: ${esc(fav.emoji)} ${esc(fav.name)}`);
+      toast(`Deshecho: ${icon(fav.icon)} ${esc(fav.name)}`);
       return;
     }
   }
@@ -659,7 +674,7 @@ function tapFavorite(id) {
     return;
   }
   const { log, mult, reduced } = store.addLog({
-    sub: sub.id, favId: fav.id, name: fav.name, emoji: fav.emoji, qty: 1, date: ui.date,
+    sub: sub.id, favId: fav.id, name: fav.name, icon: fav.icon, qty: 1, date: ui.date,
   });
   celebrate(log, mult, reduced);
 }
@@ -716,6 +731,9 @@ document.addEventListener('click', (e) => {
     case 'offset':
       ui.offset = Number(step) === 0 ? 0 : Math.min(0, ui.offset + Number(step));
       return render();
+    case 'avatar':
+      store.setProfile({ avatar: id });
+      return;
     case 'edit-fav':
       return openFavEditor(id);
     case 'export':
@@ -729,7 +747,6 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('change', async (e) => {
   if (e.target.id === 'profile-name') store.setProfile({ name: e.target.value.trim() || 'Novato' });
-  if (e.target.id === 'profile-avatar') store.setProfile({ avatar: e.target.value.trim() || '🎭' });
   if (e.target.id === 'import-file') {
     const file = e.target.files[0];
     if (!file) return;
@@ -744,6 +761,9 @@ document.addEventListener('change', async (e) => {
 
 // ---------- Inicio ----------
 
+document.querySelectorAll('[data-icon]').forEach((el) => {
+  el.innerHTML = icon(el.dataset.icon);
+});
 store.load();
 store.subscribe(render);
 render();

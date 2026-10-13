@@ -7,6 +7,8 @@ Está pensada para usarse en **iPhone** desde la pantalla de inicio. No tiene se
 
 La estética es de JRPG oscuro: paleta roja, negra y blanca, paneles con cortes en diagonal, etiquetas tipo recorte y tipografía condensada ([Anton](https://fonts.google.com/specimen/Anton), que queda guardada para funcionar sin conexión).
 
+Los íconos son siluetas de [game-icons.net](https://game-icons.net) (Lorc, Delapouite y colaboradores, licencia [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)), integradas en [`js/icons.js`](js/icons.js). Para agregar uno, copia el `<path>` de su SVG en ese archivo y usa su nombre en `js/data.js`.
+
 ## Atributos
 
 | Atributo | Arcano | Ejemplos |
@@ -27,10 +29,10 @@ El puntaje no se define por actividad sino por **subcategoría**. Cada una tiene
 | Forma de medir | Ejemplo | Cómo se registra |
 |---|---|---|
 | ⏱ Por hora | Estudio › Curso: 🧠 +20/h ⚡ +6/h | Duración (15 min, 30 min, 1 h…) |
-| 🔢 Por unidad | Carrera › Postulación: 🛡️ +12 ⚡ +3 | Cantidad |
+| 🔢 Por unidad | Profesional › Búsqueda de empleo: 🛡️ +12 ⚡ +3 | Cantidad |
 | ✅ Una vez al día | Rutina › Levantarse temprano: ⚡ +10 ❤️ +2 | Un toque |
 
-Hay 7 categorías: **Estudio, Carrera, Deporte, Hogar, Descanso y rutina, Ocio y Tentaciones**, con 25 subcategorías en total. Puedes ver la tabla completa en *Ajustes › Tabla de puntajes* y editarla en [`js/data.js`](js/data.js).
+Hay 7 categorías: **Estudio, Profesional, Deporte, Hogar, Descanso y rutina, Ocio y Tentaciones**, con 26 subcategorías en total. *Profesional* agrupa la jornada laboral, la búsqueda de empleo (temporal), el networking y el desarrollo profesional. Puedes ver la tabla completa en *Ajustes › Tabla de puntajes* y editarla en [`js/data.js`](js/data.js).
 
 - **Actividad con nombre** (ej. "Curso Databricks" en Estudio › Curso): sirve para lo que quieres seguir como identidad propia. Se guarda en *Mis actividades* para registrarla con un toque y tiene su propia racha.
 - **Registro genérico con nota** (ej. Hogar › Aseo, 45 min, "baño y cocina"): sirve para lo variable. No necesitas una actividad por habitación.
@@ -91,6 +93,7 @@ js/game.js            XP, óptimo diario, niveles, rachas y arcano
 js/stats.js           Rangos de día/semana/mes y agregaciones
 js/store.js           Persistencia en localStorage, exportar e importar
 js/charts.js          Gráfico de radar en SVG
+js/icons.js           Íconos SVG (game-icons.net) y selector de avatar
 tools/serve.ps1       Servidor local para probar
 tools/make-icons.ps1  Genera los íconos PNG
 ```

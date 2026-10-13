@@ -65,7 +65,7 @@ export function sumRange(logs, { start, end }) {
     c.minutes += mins;
     c.count++;
 
-    const n = (byName[l.key] ??= { name: l.name, emoji: l.emoji, sub, count: 0, qty: 0, xp: 0 });
+    const n = (byName[l.key] ??= { name: l.name, icon: l.icon, sub, count: 0, qty: 0, xp: 0 });
     n.count++;
     n.qty += l.qty || 0;
     n.xp += xp;

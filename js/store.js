@@ -1,6 +1,7 @@
 // Estado de la app guardado en el propio dispositivo (localStorage).
 import { DEFAULT_ATTRIBUTES, DEFAULT_FAVORITES, subInfo } from './data.js';
 import { computeLogXp } from './game.js';
+import { ICONS } from './icons.js';
 import { uid } from './util.js';
 
 const KEY = 'rpg-goals-track:v1';
@@ -13,7 +14,7 @@ function defaults() {
   return {
     version: VERSION,
     createdAt: new Date().toISOString(),
-    profile: { name: 'Novato', avatar: '🎭' },
+    profile: { name: 'Novato', avatar: 'domino-mask' },
     attributes: clone(DEFAULT_ATTRIBUTES),
     favorites: clone(DEFAULT_FAVORITES),
     logs: [],
@@ -33,29 +34,49 @@ function migrateV1(s) {
   const names = Object.fromEntries((s.activities || []).map((a) => [a.id, a]));
   const logs = (s.logs || []).map((l) => {
     const [sub, qty] = V1_MAP[l.activityId] ?? ['otros', 1];
-    const old = names[l.activityId];
     return {
       id: l.id, date: l.date, ts: l.ts, sub, key: sub, qty,
-      name: old?.name ?? subInfo(sub).name, emoji: old?.emoji ?? subInfo(sub).emoji,
+      name: names[l.activityId]?.name ?? subInfo(sub).name,
       xp: l.xp, streak: l.streak,
     };
   });
   return { ...s, version: VERSION, favorites: clone(DEFAULT_FAVORITES), logs, activities: undefined };
 }
 
+const DEFAULT_FAV_ICONS = Object.fromEntries(DEFAULT_FAVORITES.map((f) => [f.id, f.icon]));
+const RENAMED_FAVS = { 'f-postular': ['Postulación', 'Búsqueda de empleo'] };
+
+// Las versiones anteriores usaban emojis; se reemplazan por íconos del catálogo.
+function withIcons(favorites, logs) {
+  const favs = favorites.map(({ emoji, ...f }) => {
+    const iconId = ICONS[f.icon] ? f.icon : DEFAULT_FAV_ICONS[f.id] ?? subInfo(f.sub).icon;
+    const [oldName, newName] = RENAMED_FAVS[f.id] ?? [];
+    return { ...f, icon: iconId, name: f.name === oldName ? newName : f.name };
+  });
+  const favIcon = Object.fromEntries(favs.map((f) => [f.id, f.icon]));
+  const fixedLogs = logs.map(({ emoji, ...l }) => (
+    ICONS[l.icon] ? l : { ...l, icon: favIcon[l.favId] ?? subInfo(l.sub).icon }
+  ));
+  return { favorites: favs, logs: fixedLogs };
+}
+
 function normalize(s) {
   const d = defaults();
   const src = (s.version ?? 1) < 2 ? migrateV1(s) : s;
   const profile = { ...d.profile, ...src.profile };
-  if (profile.avatar === '🧙') profile.avatar = d.profile.avatar; // avatar por defecto anterior
+  if (!ICONS[profile.avatar]) profile.avatar = d.profile.avatar;
+  const { favorites, logs } = withIcons(
+    Array.isArray(src.favorites) ? src.favorites : d.favorites,
+    Array.isArray(src.logs) ? src.logs : [],
+  );
   return {
     ...d,
     ...src,
     profile,
     // Los atributos no se editan desde la app: siempre se usan los del catálogo (colores y arcanos al día).
     attributes: d.attributes,
-    favorites: Array.isArray(src.favorites) ? src.favorites : d.favorites,
-    logs: Array.isArray(src.logs) ? src.logs : [],
+    favorites,
+    logs,
   };
 }
 
@@ -87,14 +108,14 @@ function commit() {
 export const favoriteById = (id) => state.favorites.find((f) => f.id === id);
 
 // La clave de racha es la actividad frecuente si existe; si no, la subcategoría.
-export function addLog({ sub: subId, favId, name, emoji, qty, note, date }) {
+export function addLog({ sub: subId, favId, name, icon, qty, note, date }) {
   const sub = subInfo(subId);
   const key = favId || subId;
   const amount = sub.mode === 'check' ? 1 : qty;
   const { xp, streak, mult, reduced } = computeLogXp(state.logs, sub, amount, date, key);
   const log = {
     id: uid(), date, ts: Date.now(), sub: subId, key, qty: amount,
-    name: name || sub.name, emoji: emoji || sub.emoji, xp, streak,
+    name: name || sub.name, icon: icon || sub.icon, xp, streak,
   };
   if (favId) log.favId = favId;
   if (note) log.note = note;
