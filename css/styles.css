@@ -180,7 +180,7 @@ h2 .muted { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-ser
 .neg-title { background: var(--red); color: #fff; box-shadow: 4px 4px 0 #fff; }
 .neg-title .muted { color: rgba(255, 255, 255, .75); }
 
-/* ---------- Rutina y tentaciones ---------- */
+/* ---------- Rutina y malos hábitos ---------- */
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill {
   padding: 10px 18px; min-height: 44px; background: var(--surface-2); color: #fff; font-weight: 600;

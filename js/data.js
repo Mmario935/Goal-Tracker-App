@@ -8,7 +8,7 @@
 // icon: id de un ícono de js/icons.js.
 //
 // Los ids son permanentes porque los registros guardados los usan ("carrera.postulacion"),
-// por eso pueden diferir del nombre visible (la categoría "carrera" se muestra como "Profesional").
+// por eso pueden diferir del nombre visible ("carrera" se muestra como "Profesional" y "tentacion" como "Malos hábitos").
 
 export const DEFAULT_ATTRIBUTES = [
   { id: 'vit', name: 'Vitalidad', icon: 'heart-beats', color: '#ff1f3d', arcana: 'El Carro' },
@@ -74,7 +74,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: 'tentacion', name: 'Tentaciones', icon: 'devil-mask', color: '#8a0012',
+    id: 'tentacion', name: 'Malos hábitos', icon: 'devil-mask', color: '#8a0012',
     subs: [
       { id: 'trasnochar', name: 'Dormir tarde', icon: 'owl', mode: 'check', rate: { vit: -8, dis: -4 } },
       { id: 'delivery', name: 'Delivery / gasto impulsivo', icon: 'pizza-slice', mode: 'count', unit: 'vez', units: 'veces', rate: { riq: -8 } },

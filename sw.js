@@ -1,6 +1,6 @@
 // Service worker: primero red (para recibir actualizaciones), caché como respaldo sin conexión.
 // Sube CACHE cuando cambie la lista de archivos.
-const CACHE = 'rpg-metas-v4';
+const CACHE = 'rpg-metas-v5';
 const ASSETS = [
   './',
   './index.html',

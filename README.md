@@ -32,7 +32,7 @@ El puntaje no se define por actividad sino por **subcategoría**. Cada una tiene
 | 🔢 Por unidad | Profesional › Búsqueda de empleo: 🛡️ +12 ⚡ +3 | Cantidad |
 | ✅ Una vez al día | Rutina › Levantarse temprano: ⚡ +10 ❤️ +2 | Un toque |
 
-Hay 7 categorías: **Estudio, Profesional, Deporte, Hogar, Descanso y rutina, Ocio y Tentaciones**, con 26 subcategorías en total. *Profesional* agrupa la jornada laboral, la búsqueda de empleo (temporal), el networking y el desarrollo profesional. Puedes ver la tabla completa en *Ajustes › Tabla de puntajes* y editarla en [`js/data.js`](js/data.js).
+Hay 7 categorías: **Estudio, Profesional, Deporte, Hogar, Descanso y rutina, Ocio y Malos hábitos**, con 26 subcategorías en total. *Profesional* agrupa la jornada laboral, la búsqueda de empleo (temporal), el networking y el desarrollo profesional. Puedes ver la tabla completa en *Ajustes › Tabla de puntajes* y editarla en [`js/data.js`](js/data.js).
 
 - **Actividad con nombre** (ej. "Curso Databricks" en Estudio › Curso): sirve para lo que quieres seguir como identidad propia. Se guarda en *Mis actividades* para registrarla con un toque y tiene su propia racha.
 - **Registro genérico con nota** (ej. Hogar › Aseo, 45 min, "baño y cocina"): sirve para lo variable. No necesitas una actividad por habitación.
@@ -42,13 +42,13 @@ Hay 7 categorías: **Estudio, Profesional, Deporte, Hogar, Descanso y rutina, Oc
 - Del nivel N al N+1 de un atributo se necesitan `100 × N^1.5` XP. El nivel del personaje usa la XP total con base 300.
 - **Óptimo diario**: cada subcategoría tiene uno (ej. 2 h de videojuegos o 3 h de curso). El tiempo o las unidades por encima valen la mitad. Así el ocio suma sin dominar y no conviene inflar horas.
 - **Rachas** (días seguidos con la misma actividad): 3 días ×1.1 · 7 días ×1.25 · 14 días ×1.35 · 30 días ×1.5.
-- **Tentaciones**: subcategorías que restan XP, como dormir tarde, delivery o scroll.
+- **Malos hábitos**: subcategorías que restan XP, como dormir tarde, delivery o scroll.
 - Puedes registrar actividades simultáneas (por ejemplo, cocinar mientras escuchas un curso). No se bloquean solapes.
 - Cada registro guarda la XP que otorgó en ese momento, así que cambiar puntajes no altera tu historial.
 
 ## Vistas
 
-- **Hoy**: XP y tiempo invertido del día. Tiene la rutina diaria como píldoras de un toque, tus actividades como tarjetas, las tentaciones, el botón **＋ Registrar actividad** (categoría → subcategoría → detalle) y el registro del día con opción de borrar. Con ‹ › puedes registrar días anteriores.
+- **Hoy**: XP y tiempo invertido del día. Tiene la rutina diaria como píldoras de un toque, tus actividades como tarjetas, los malos hábitos, el botón **＋ Registrar actividad** (categoría → subcategoría → detalle) y el registro del día con opción de borrar. Con ‹ › puedes registrar días anteriores.
 - **Personaje**: radar de atributos, nivel de cada uno y rachas activas.
 - **Estadísticas**: comparativa diaria, semanal o mensual contra el periodo anterior. Si el periodo está en curso, se compara contra el mismo tramo del anterior. Incluye **tiempo por categoría**, tendencia, lo que más XP te aportó y un mapa de constancia.
 - **Ajustes**: perfil, *Mis actividades*, tabla de puntajes y respaldo (exportar e importar JSON).

@@ -138,7 +138,7 @@ function viewToday(s) {
 
     ${routine.length ? `<h3 class="group-title">Rutina diaria</h3><div class="pills">${routine.map((f) => pill(f)).join('')}</div>` : ''}
     ${regular.length ? `<h3 class="group-title">Mis actividades</h3><div class="tiles">${regular.map(tile).join('')}</div>` : ''}
-    ${temptations.length ? `<h3 class="group-title neg-title">${icon('devil-mask')} Tentaciones <span class="muted">(restan XP)</span></h3>
+    ${temptations.length ? `<h3 class="group-title neg-title">${icon('devil-mask')} Malos hábitos <span class="muted">(restan XP)</span></h3>
       <div class="pills">${temptations.map((f) => pill(f, true)).join('')}</div>` : ''}
 
     <section class="card">
