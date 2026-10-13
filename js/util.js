@@ -38,3 +38,14 @@ export const fmtNum = (n) => Math.round(n).toLocaleString('es');
 export function fmtSigned(n) {
   return (n > 0 ? '+' : '') + fmtNum(n);
 }
+
+export function fmtMinutes(min) {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (!h) return `${m} min`;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
+export function fmtHours(min) {
+  return `${(min / 60).toLocaleString('es', { maximumFractionDigits: 1 })} h`;
+}

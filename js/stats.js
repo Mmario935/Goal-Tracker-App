@@ -1,4 +1,5 @@
 // Agregaciones por periodo (día, semana, mes) para las comparativas.
+import { subInfo } from './data.js';
 import { addDays, fmtDate, fromKey, toKey } from './util.js';
 
 export const PERIODS = {
@@ -44,19 +45,32 @@ export function shortLabel(type, range) {
 
 export function sumRange(logs, { start, end }) {
   const by = {};
-  const counts = {};
+  const byCat = {};
+  const byName = {};
   let total = 0;
   let count = 0;
+  let minutes = 0;
   for (const l of logs) {
     if (l.date < start || l.date > end) continue;
+    const sub = subInfo(l.sub);
+    const mins = sub.mode === 'time' ? l.qty || 0 : 0;
+    const xp = Object.values(l.xp).reduce((s, v) => s + v, 0);
     count++;
-    counts[l.activityId] = (counts[l.activityId] || 0) + 1;
-    for (const [a, v] of Object.entries(l.xp)) {
-      by[a] = (by[a] || 0) + v;
-      total += v;
-    }
+    minutes += mins;
+    total += xp;
+    for (const [a, v] of Object.entries(l.xp)) by[a] = (by[a] || 0) + v;
+
+    const c = (byCat[sub.cat.id] ??= { xp: 0, minutes: 0, count: 0 });
+    c.xp += xp;
+    c.minutes += mins;
+    c.count++;
+
+    const n = (byName[l.key] ??= { name: l.name, emoji: l.emoji, sub, count: 0, qty: 0, xp: 0 });
+    n.count++;
+    n.qty += l.qty || 0;
+    n.xp += xp;
   }
-  return { total, by, count, counts };
+  return { total, by, byCat, byName, count, minutes };
 }
 
 // Días del rango ya transcurridos (para promedios justos en periodos en curso).

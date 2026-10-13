@@ -1,25 +1,47 @@
 import * as store from './store.js';
 import { radarSVG } from './charts.js';
-import { ATTR_LEVEL_BASE, character, currentStreak, datesByActivity, isNegative } from './game.js';
+import { CATEGORIES, SUBS, TIME_PRESETS, subInfo } from './data.js';
+import {
+  ATTR_LEVEL_BASE, character, computeLogXp, currentStreak, datesByKey, isNegativeSub,
+} from './game.js';
 import {
   PERIODS, dailyTotals, deltaPct, elapsedDays, periodLabel, periodRange, shortLabel, sumRange,
 } from './stats.js';
-import { addDays, esc, fmtDate, fmtNum, fmtSigned, todayKey, uid } from './util.js';
+import {
+  addDays, esc, fmtDate, fmtHours, fmtMinutes, fmtNum, fmtSigned, todayKey,
+} from './util.js';
 
 const ui = { view: 'today', date: todayKey(), period: 'week', offset: 0 };
 const main = document.getElementById('main');
 const dialog = document.getElementById('dialog');
 const toastEl = document.getElementById('toast');
 
+// Estado del flujo de registro (categoría → subcategoría → detalle) mientras el diálogo está abierto.
+let sheet = null;
+
 // ---------- Helpers de vista ----------
 
 const attrMap = (s) => Object.fromEntries(s.attributes.map((a) => [a.id, a]));
 
-function fxChips(xp, attrs) {
+function fxChips(xp, attrs, suffix = '') {
   return Object.entries(xp)
     .filter(([, v]) => v)
-    .map(([a, v]) => `<span class="fx ${v < 0 ? 'fx-neg' : ''}">${esc(attrs[a]?.emoji ?? a)}${fmtSigned(v)}</span>`)
+    .map(([a, v]) => `<span class="fx ${v < 0 ? 'fx-neg' : ''}">${esc(attrs[a]?.emoji ?? a)}${fmtSigned(v)}${suffix}</span>`)
     .join('');
+}
+
+const MODE_SUFFIX = { time: '/h', count: '', check: '' };
+
+function modeLabel(sub) {
+  if (sub.mode === 'time') return 'por hora';
+  if (sub.mode === 'count') return `por ${sub.unit}`;
+  return 'una vez al día';
+}
+
+function amountLabel(sub, qty) {
+  if (sub.mode === 'time') return fmtMinutes(qty);
+  if (sub.mode === 'count') return `${qty} ${qty === 1 ? sub.unit : sub.units}`;
+  return '✓';
 }
 
 function bar(pct, color) {
@@ -52,40 +74,49 @@ function viewToday(s) {
   const attrs = attrMap(s);
   const date = ui.date;
   const isToday = date === todayKey();
-  const dayLogs = s.logs.filter((l) => l.date === date);
-  const daySum = sumRange(dayLogs, { start: date, end: date });
-  const dates = datesByActivity(s.logs);
-  const active = s.activities.filter((a) => !a.archived);
+  const dayLogs = s.logs.filter((l) => l.date === date).sort((a, b) => a.ts - b.ts);
+  const day = sumRange(dayLogs, { start: date, end: date });
+  const dates = datesByKey(s.logs);
 
-  const row = (a) => {
-    const count = daySum.counts[a.id] || 0;
-    const neg = isNegative(a);
-    const streak = neg ? 0 : currentStreak(dates.get(a.id), date);
-    const meta = [
-      streak >= 2 ? `<span class="streak">🔥${streak}</span>` : '',
-      count ? `<span class="count">${a.repeatable ? `×${count}` : '✓'}</span>` : '',
-    ].join('');
-    return `<div class="act ${count ? 'done' : ''} ${neg ? 'neg' : ''}">
-      <button class="act-main" data-action="log" data-id="${esc(a.id)}">
-        <span class="act-emoji">${esc(a.emoji)}</span>
-        <span class="act-body"><span class="act-name">${esc(a.name)}</span><span class="act-fx">${fxChips(a.effects, attrs)}</span></span>
-        <span class="act-meta">${meta}</span>
-      </button>
-      ${a.repeatable && count ? `<button class="act-undo" data-action="unlog" data-id="${esc(a.id)}" aria-label="Quitar uno">−</button>` : ''}
-    </div>`;
+  const favs = s.favorites.filter((f) => !f.archived).map((f) => ({ ...f, info: subInfo(f.sub) }));
+  const routine = favs.filter((f) => f.info.mode === 'check' && !isNegativeSub(f.info));
+  const regular = favs.filter((f) => f.info.mode !== 'check' && !isNegativeSub(f.info));
+  const temptations = favs.filter((f) => isNegativeSub(f.info));
+
+  const todayOf = (f) => day.byName[f.id];
+  const streakOf = (f) => currentStreak(dates.get(f.id), date);
+
+  const pill = (f, neg = false) => {
+    const t = todayOf(f);
+    const streak = neg ? 0 : streakOf(f);
+    const amount = t && f.info.mode !== 'check' ? ` · ${amountLabel(f.info, t.qty)}` : '';
+    return `<button class="pill ${t ? 'on' : ''} ${neg ? 'neg' : ''}" data-action="fav" data-id="${esc(f.id)}">
+      ${esc(f.emoji)} ${esc(f.name)}${amount}${t && f.info.mode === 'check' ? ' ✓' : ''}${streak >= 2 ? ` <span class="streak">🔥${streak}</span>` : ''}
+    </button>`;
   };
 
-  // Agrupa las actividades positivas por su atributo principal.
-  const groups = s.attributes.map((attr) => ({ attr, items: [] }));
-  const negatives = [];
-  for (const a of active) {
-    if (isNegative(a)) {
-      negatives.push(a);
-      continue;
-    }
-    const [mainAttr] = Object.entries(a.effects).sort((x, y) => y[1] - x[1])[0] ?? [];
-    (groups.find((g) => g.attr.id === mainAttr) ?? groups[0]).items.push(a);
-  }
+  const tile = (f) => {
+    const t = todayOf(f);
+    const streak = streakOf(f);
+    return `<button class="tile ${t ? 'on' : ''}" data-action="fav" data-id="${esc(f.id)}" style="--c:${esc(f.info.cat.color)}">
+      <span class="tile-top"><span class="tile-emoji">${esc(f.emoji)}</span>${streak >= 2 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
+      <span class="tile-name">${esc(f.name)}</span>
+      <span class="tile-sub">${t ? `<strong>${esc(amountLabel(f.info, t.qty))}</strong>` : esc(modeLabel(f.info))}</span>
+    </button>`;
+  };
+
+  const logRow = (l) => {
+    const sub = subInfo(l.sub);
+    return `<li class="log-row">
+      <span class="log-emoji">${esc(l.emoji)}</span>
+      <span class="log-body">
+        <span class="log-name">${esc(l.name)} <span class="muted small">${esc(amountLabel(sub, l.qty))}</span></span>
+        ${l.note ? `<span class="log-note">${esc(l.note)}</span>` : ''}
+        <span class="act-fx">${fxChips(l.xp, attrs)}</span>
+      </span>
+      <button class="log-del" data-action="del-log" data-id="${esc(l.id)}" aria-label="Borrar registro">✕</button>
+    </li>`;
+  };
 
   return `${heroCard(s, ch)}
     <div class="date-nav">
@@ -94,28 +125,43 @@ function viewToday(s) {
       <button class="icon-btn" data-action="date" data-step="1" ${isToday ? 'disabled' : ''} aria-label="Día siguiente">›</button>
     </div>
     <section class="card day-summary">
-      <div class="day-xp"><span class="muted">XP del día</span><strong class="${daySum.total < 0 ? 'neg-text' : ''}">${fmtSigned(daySum.total)}</strong></div>
-      <div class="chips">${fxChips(daySum.by, attrs) || '<span class="muted">Toca una actividad para registrarla.</span>'}</div>
+      <div class="day-xp"><span class="muted">XP del día</span><strong class="${day.total < 0 ? 'neg-text' : ''}">${fmtSigned(day.total)}</strong></div>
+      <div class="muted small">⏱ ${day.minutes ? `${fmtMinutes(day.minutes)} invertidos` : 'Aún sin tiempo registrado'}</div>
+      <div class="chips">${fxChips(day.by, attrs)}</div>
     </section>
-    ${groups.filter((g) => g.items.length).map((g) => `
-      <h3 class="group-title" style="--c:${esc(g.attr.color)}">${esc(g.attr.emoji)} ${esc(g.attr.name)}</h3>
-      <div class="act-list">${g.items.map(row).join('')}</div>`).join('')}
-    ${negatives.length ? `<h3 class="group-title neg-title">😈 Tentaciones <span class="muted">(restan XP)</span></h3>
-      <div class="act-list">${negatives.map(row).join('')}</div>` : ''}`;
+
+    <button class="btn primary big" data-action="new-log">＋ Registrar actividad</button>
+
+    ${routine.length ? `<h3 class="group-title">Rutina diaria</h3><div class="pills">${routine.map((f) => pill(f)).join('')}</div>` : ''}
+    ${regular.length ? `<h3 class="group-title">Mis actividades</h3><div class="tiles">${regular.map(tile).join('')}</div>` : ''}
+    ${temptations.length ? `<h3 class="group-title neg-title">😈 Tentaciones <span class="muted">(restan XP)</span></h3>
+      <div class="pills">${temptations.map((f) => pill(f, true)).join('')}</div>` : ''}
+
+    <section class="card">
+      <h2>Registro del día</h2>
+      ${dayLogs.length ? `<ul class="log-list">${dayLogs.map(logRow).join('')}</ul>`
+        : '<p class="muted">Toca una actividad o “Registrar actividad” para empezar.</p>'}
+    </section>`;
 }
 
 // ---------- Vista: Personaje ----------
+
+function streakLabel(s, key) {
+  const fav = store.favoriteById(key);
+  if (fav) return { emoji: fav.emoji, name: fav.name };
+  const sub = SUBS.get(key);
+  return sub ? { emoji: sub.emoji, name: sub.name } : null;
+}
 
 function viewCharacter(s) {
   const ch = character(s);
   const values = ch.attrs.map((a) => ({ label: a.name, emoji: a.emoji, color: a.color, value: a.level + a.pct - 1 }));
   const max = Math.max(4, Math.ceil(Math.max(...values.map((v) => v.value)) + 1));
-  const dates = datesByActivity(s.logs);
   const today = todayKey();
-  const streaks = s.activities
-    .filter((a) => !a.archived && !isNegative(a))
-    .map((a) => ({ a, n: currentStreak(dates.get(a.id), today) }))
-    .filter((x) => x.n >= 2)
+  const streaks = [...datesByKey(s.logs)]
+    .map(([key, dates]) => ({ key, n: currentStreak(dates, today), label: streakLabel(s, key) }))
+    .filter((x) => x.n >= 2 && x.label && !(store.favoriteById(x.key)?.archived))
+    .filter((x) => !isNegativeSub(subInfo(store.favoriteById(x.key)?.sub ?? x.key)))
     .sort((x, y) => y.n - x.n);
 
   return `${heroCard(s, ch)}
@@ -132,7 +178,7 @@ function viewCharacter(s) {
     </section>
     <section class="card">
       <h2>Rachas activas</h2>
-      ${streaks.length ? `<ul class="streak-list">${streaks.map(({ a, n }) => `<li><span>${esc(a.emoji)} ${esc(a.name)}</span><span class="streak">🔥 ${n} días</span></li>`).join('')}</ul>`
+      ${streaks.length ? `<ul class="streak-list">${streaks.map(({ label, n }) => `<li><span>${esc(label.emoji)} ${esc(label.name)}</span><span class="streak">🔥 ${n} días</span></li>`).join('')}</ul>`
         : '<p class="muted">Repite una actividad dos días seguidos para empezar una racha. Con 3, 7, 14 y 30 días ganas multiplicadores de XP.</p>'}
     </section>`;
 }
@@ -140,7 +186,6 @@ function viewCharacter(s) {
 // ---------- Vista: Estadísticas ----------
 
 function viewStats(s) {
-  const attrs = attrMap(s);
   const today = todayKey();
   const type = ui.period;
   const cur = periodRange(type, today, ui.offset);
@@ -156,17 +201,16 @@ function viewStats(s) {
   const vsLabel = inProgress && type !== 'day' ? `mismo tramo ${PERIODS[type].ofPrev}` : PERIODS[type].prev;
   const maxAttr = Math.max(1, ...s.attributes.flatMap((a) => [curSum.by[a.id] || 0, prevSum.by[a.id] || 0]));
 
+  const cats = CATEGORIES.filter((c) => c.id !== 'tentacion');
+  const maxMin = Math.max(1, ...cats.flatMap((c) => [curSum.byCat[c.id]?.minutes || 0, prevSum.byCat[c.id]?.minutes || 0]));
+
   const trend = Array.from({ length: 8 }, (_, i) => {
     const r = periodRange(type, today, ui.offset - 7 + i);
     return { r, total: sumRange(s.logs, r).total, current: i === 7 };
   });
   const trendMax = Math.max(1, ...trend.map((t) => Math.abs(t.total)));
 
-  const top = Object.entries(curSum.counts)
-    .map(([id, n]) => ({ a: store.activityById(id), n }))
-    .filter((x) => x.a)
-    .sort((x, y) => y.n - x.n)
-    .slice(0, 5);
+  const top = Object.values(curSum.byName).sort((x, y) => y.xp - x.xp).slice(0, 6);
 
   return `<div class="segmented">
       ${Object.entries(PERIODS).map(([k, p]) => `<button data-action="period" data-period="${k}" class="${k === type ? 'on' : ''}">${p.label}</button>`).join('')}
@@ -178,8 +222,8 @@ function viewStats(s) {
     </div>
     <section class="card kpis">
       <div><span class="muted small">XP total</span><strong>${fmtSigned(curSum.total)}</strong>${deltaBadge(curSum.total, prevSum.total)}</div>
-      <div><span class="muted small">Promedio diario</span><strong>${fmtNum(curSum.total / curDays)}</strong>${deltaBadge(curSum.total / curDays, prevSum.total / prevDays)}</div>
-      <div><span class="muted small">Registros</span><strong>${curSum.count}</strong>${deltaBadge(curSum.count, prevSum.count)}</div>
+      <div><span class="muted small">XP por día</span><strong>${fmtNum(curSum.total / curDays)}</strong>${deltaBadge(curSum.total / curDays, prevSum.total / prevDays)}</div>
+      <div><span class="muted small">Tiempo</span><strong>${fmtHours(curSum.minutes)}</strong>${deltaBadge(curSum.minutes, prevSum.minutes)}</div>
     </section>
     <section class="card">
       <h2>Por atributo <span class="muted small">vs ${esc(vsLabel)}</span></h2>
@@ -199,7 +243,25 @@ function viewStats(s) {
       <p class="legend"><span class="sw" style="background:var(--accent)"></span>Actual <span class="sw prev"></span>Anterior (${fmtNum(prevSum.total)} XP)</p>
     </section>
     <section class="card">
-      <h2>Tendencia</h2>
+      <h2>Tiempo por categoría</h2>
+      <div class="compare">
+        ${cats.map((c) => {
+          const cm = curSum.byCat[c.id]?.minutes || 0;
+          const pm = prevSum.byCat[c.id]?.minutes || 0;
+          const count = curSum.byCat[c.id]?.count || 0;
+          return `<div class="cmp-row">
+            <div class="cmp-head"><span>${esc(c.emoji)} ${esc(c.name)}</span><span><strong>${cm ? fmtHours(cm) : count ? `${count} reg.` : '—'}</strong> ${cm || pm ? deltaBadge(cm, pm) : ''}</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-bar" style="width:${(cm / maxMin) * 100}%;background:${esc(c.color)}"></div>
+              <div class="cmp-bar prev" style="width:${(pm / maxMin) * 100}%"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <p class="legend">Solo cuenta actividades medidas en tiempo. Anterior: ${fmtHours(prevSum.minutes)}</p>
+    </section>
+    <section class="card">
+      <h2>Tendencia de XP</h2>
       <div class="trend">
         ${trend.map((t) => `<div class="trend-col ${t.current ? 'current' : ''}">
           <span class="trend-val">${t.total ? fmtNum(t.total) : ''}</span>
@@ -209,13 +271,15 @@ function viewStats(s) {
       </div>
     </section>
     <section class="card">
-      <h2>Más realizadas</h2>
-      ${top.length ? `<ul class="top-list">${top.map(({ a, n }) => `<li><span>${esc(a.emoji)} ${esc(a.name)}</span><span class="count">×${n}</span></li>`).join('')}</ul>`
+      <h2>Lo que más te aportó</h2>
+      ${top.length ? `<ul class="top-list">${top.map((n) => `<li>
+          <span>${esc(n.emoji)} ${esc(n.name)} <span class="muted small">${esc(n.sub.mode === 'check' ? `${n.count} día${n.count === 1 ? '' : 's'}` : amountLabel(n.sub, n.qty))}</span></span>
+          <span class="count ${n.xp < 0 ? 'neg' : ''}">${fmtSigned(n.xp)} XP</span></li>`).join('')}</ul>`
         : '<p class="muted">Sin registros en este periodo.</p>'}
     </section>
     <section class="card">
       <h2>Constancia <span class="muted small">últimas 17 semanas</span></h2>
-      ${heatmap(s, attrs)}
+      ${heatmap(s)}
     </section>`;
 }
 
@@ -223,8 +287,9 @@ function heatmap(s) {
   const today = todayKey();
   const totals = dailyTotals(s.logs);
   const start = periodRange('week', today, -16).start;
+  const end = periodRange('week', today, 0).end;
   const days = [];
-  for (let d = start; d <= periodRange('week', today, 0).end; d = addDays(d, 1)) days.push(d);
+  for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
   const max = Math.max(1, ...days.map((d) => totals.get(d) || 0));
   const cells = days.map((d) => {
     const v = totals.get(d) || 0;
@@ -239,7 +304,7 @@ function heatmap(s) {
 
 function viewSettings(s) {
   const attrs = attrMap(s);
-  const active = s.activities.filter((a) => !a.archived);
+  const favs = s.favorites.filter((f) => !f.archived);
   const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
   return `<section class="card">
       <h2>Perfil</h2>
@@ -247,11 +312,29 @@ function viewSettings(s) {
       <label class="field"><span>Avatar (emoji)</span><input id="profile-avatar" value="${esc(s.profile.avatar)}" maxlength="4"></label>
     </section>
     <section class="card">
-      <div class="row-between"><h2>Actividades</h2><button class="btn small" data-action="edit" data-id="">+ Nueva</button></div>
+      <div class="row-between"><h2>Mis actividades</h2><button class="btn small" data-action="edit-fav" data-id="">+ Nueva</button></div>
+      <p class="muted small">Atajos que aparecen en “Hoy”. Su puntaje lo define la subcategoría.</p>
       <ul class="manage-list">
-        ${active.map((a) => `<li><button data-action="edit" data-id="${esc(a.id)}">
-          <span>${esc(a.emoji)} ${esc(a.name)}</span><span class="act-fx">${fxChips(a.effects, attrs)}</span></button></li>`).join('')}
+        ${favs.map((f) => {
+          const sub = subInfo(f.sub);
+          return `<li><button data-action="edit-fav" data-id="${esc(f.id)}">
+            <span>${esc(f.emoji)} ${esc(f.name)}</span>
+            <span class="muted small">${esc(sub.cat.name)} › ${esc(sub.name)} · ${esc(modeLabel(sub))}</span></button></li>`;
+        }).join('')}
       </ul>
+    </section>
+    <section class="card">
+      <h2>Tabla de puntajes</h2>
+      <p class="muted small">XP base de cada subcategoría. Sobre el óptimo diario, el extra vale la mitad.</p>
+      ${CATEGORIES.map((c) => `<details class="score-cat">
+        <summary>${esc(c.emoji)} ${esc(c.name)}</summary>
+        <ul class="score-list">
+          ${c.subs.map((sub) => `<li>
+            <span>${esc(sub.emoji)} ${esc(sub.name)}<span class="muted small"> · ${esc(modeLabel(sub))}${sub.optimal ? ` · óptimo ${sub.mode === 'time' ? fmtMinutes(sub.optimal) : sub.optimal}` : ''}</span></span>
+            <span class="act-fx">${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</span>
+          </li>`).join('')}
+        </ul>
+      </details>`).join('')}
     </section>
     <section class="card">
       <h2>Datos</h2>
@@ -274,10 +357,10 @@ function viewSettings(s) {
     <section class="card">
       <h2>Cómo se calcula la XP</h2>
       <ul class="rules">
-        <li>Cada actividad suma (o resta) XP a uno o más atributos.</li>
-        <li>Cada atributo sube de nivel: del nivel N al N+1 se necesitan ${ATTR_LEVEL_BASE} × N<sup>1.5</sup> XP.</li>
-        <li>Rachas: 3 días ×1.1 · 7 días ×1.25 · 14 días ×1.35 · 30 días ×1.5.</li>
-        <li>Actividades con rendimiento decreciente valen la mitad en cada repetición del mismo día.</li>
+        <li>Cada subcategoría da XP por hora, por unidad o una vez al día a uno o más atributos.</li>
+        <li>Sobre el óptimo diario de una subcategoría, el tiempo o las unidades extra valen la mitad.</li>
+        <li>Rachas (días seguidos con la misma actividad): 3 días ×1.1 · 7 ×1.25 · 14 ×1.35 · 30 ×1.5.</li>
+        <li>Del nivel N al N+1 de un atributo se necesitan ${ATTR_LEVEL_BASE} × N<sup>1.5</sup> XP.</li>
         <li>Tu clase es la del atributo con más XP.</li>
       </ul>
     </section>`;
@@ -291,69 +374,245 @@ function render() {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.view === ui.view));
 }
 
-// ---------- Editor de actividades ----------
+// ---------- Flujo de registro ----------
 
-function openEditor(id) {
+function lastQty(key) {
+  const logs = store.getState().logs;
+  for (let i = logs.length - 1; i >= 0; i--) if (logs[i].key === key) return logs[i].qty;
+  return null;
+}
+
+function openSheet(init) {
+  sheet = { step: 1, cat: null, sub: null, favId: null, name: '', note: '', qty: null, saveFav: false, ...init };
+  renderSheet();
+  if (!dialog.open) dialog.showModal();
+}
+
+function previewHTML() {
   const s = store.getState();
-  const a = id ? store.activityById(id) : { id: '', emoji: '⭐', name: '', effects: {} };
-  const neg = id ? isNegative(a) : false;
-  dialog.innerHTML = `<form method="dialog" id="act-form">
+  const sub = subInfo(sheet.sub);
+  const key = sheet.favId || sheet.sub;
+  const { xp, mult, reduced } = computeLogXp(s.logs, sub, sub.mode === 'check' ? 1 : sheet.qty || 0, ui.date, key);
+  const notes = [
+    mult > 1 ? `🔥 racha ×${mult}` : '',
+    reduced ? 'parte sobre el óptimo diario (×0.5)' : '',
+  ].filter(Boolean).join(' · ');
+  return `<span class="muted small">Ganarás</span> ${fxChips(xp, attrMap(s)) || '—'} ${notes ? `<div class="muted small">${notes}</div>` : ''}`;
+}
+
+function renderSheet() {
+  const s = store.getState();
+  const attrs = attrMap(s);
+  let body = '';
+
+  if (sheet.step === 1) {
+    body = `<h2>¿Qué hiciste?</h2>
+      <div class="cat-grid">
+        ${CATEGORIES.map((c) => `<button class="cat-btn" data-s="cat" data-id="${c.id}" style="--c:${esc(c.color)}">
+          <span class="cat-emoji">${esc(c.emoji)}</span>${esc(c.name)}</button>`).join('')}
+      </div>`;
+  } else if (sheet.step === 2) {
+    const cat = CATEGORIES.find((c) => c.id === sheet.cat);
+    body = `<div class="sheet-head"><button class="icon-btn" data-s="back" aria-label="Volver">‹</button><h2>${esc(cat.emoji)} ${esc(cat.name)}</h2></div>
+      <div class="sub-list">
+        ${cat.subs.map((sub) => `<button class="sub-btn" data-s="sub" data-id="${cat.id}.${sub.id}">
+          <span class="act-emoji">${esc(sub.emoji)}</span>
+          <span class="act-body"><span class="act-name">${esc(sub.name)}</span>
+          <span class="muted small">${esc(modeLabel(sub))}</span>
+          <span class="act-fx">${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</span></span>
+        </button>`).join('')}
+      </div>`;
+  } else {
+    const sub = subInfo(sheet.sub);
+    const fav = sheet.favId ? store.favoriteById(sheet.favId) : null;
+    const ownFavs = fav ? [] : s.favorites.filter((f) => f.sub === sub.id && !f.archived);
+    const suggestions = [...new Set([
+      ...s.favorites.filter((f) => f.sub === sub.id && !f.archived).map((f) => f.name),
+      ...s.logs.filter((l) => l.sub === sub.id).map((l) => l.name),
+    ])].filter((n) => n !== sub.name).slice(0, 20);
+    const already = sub.mode === 'check' && store.findLog(sheet.favId || sheet.sub, ui.date);
+
+    body = `<div class="sheet-head">
+        ${sheet.fromTile ? '' : '<button class="icon-btn" data-s="back" aria-label="Volver">‹</button>'}
+        <h2>${esc(fav ? fav.emoji : sub.emoji)} ${esc(fav ? fav.name : sub.name)}</h2>
+      </div>
+      <p class="muted small sheet-path">${esc(sub.cat.name)} › ${esc(sub.name)} · ${esc(modeLabel(sub))} ${fxChips(sub.rate, attrs, MODE_SUFFIX[sub.mode])}</p>
+      ${ownFavs.length ? `<div class="field"><span>¿Es una de tus actividades?</span>
+        <div class="chip-select">${ownFavs.map((f) => `<button type="button" class="chip-opt" data-s="pick-fav" data-id="${esc(f.id)}">${esc(f.emoji)} ${esc(f.name)}</button>`).join('')}</div>
+      </div>` : ''}
+      ${fav ? '' : `<label class="field"><span>${ownFavs.length ? 'O escribe otro nombre (opcional)' : 'Nombre (opcional)'}</span>
+        <input name="name" list="name-suggestions" value="${esc(sheet.name)}" placeholder="${esc(sub.name)}" maxlength="40" autocomplete="off">
+        <datalist id="name-suggestions">${suggestions.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+      </label>`}
+      ${sub.mode === 'time' ? `<div class="field"><span>Duración</span>
+        <div class="chip-select">${TIME_PRESETS.map((m) => `<button type="button" class="chip-opt ${sheet.qty === m ? 'on' : ''}" data-s="qty" data-v="${m}">${esc(fmtMinutes(m))}</button>`).join('')}</div>
+        <label class="inline-field"><input name="minutes" type="number" inputmode="numeric" min="1" max="1440" value="${sheet.qty ?? ''}" placeholder="Otro"> minutos</label>
+      </div>` : ''}
+      ${sub.mode === 'count' ? `<div class="field"><span>Cantidad (${esc(sub.units)})</span>
+        <div class="stepper"><button type="button" class="icon-btn" data-s="dec">−</button><strong class="stepper-val">${sheet.qty}</strong><button type="button" class="icon-btn" data-s="inc">＋</button></div>
+      </div>` : ''}
+      <label class="field"><span>Nota (opcional)</span><input name="note" value="${esc(sheet.note)}" placeholder="${sub.id === 'hogar.aseo' ? 'Ej.: baño y cocina' : 'Detalle libre'}" maxlength="80"></label>
+      ${fav ? '' : `<label class="check"><input type="checkbox" name="saveFav" ${sheet.saveFav ? 'checked' : ''}> Guardar en “Mis actividades” para registrarla con un toque</label>`}
+      <div class="preview">${previewHTML()}</div>
+      ${already ? '<p class="form-error">Ya está registrada este día.</p>' : ''}
+      <div class="btn-row">
+        <span class="grow"></span>
+        <button type="button" class="btn" data-s="close">Cancelar</button>
+        <button type="button" class="btn primary" data-s="save" ${already || (sub.mode !== 'check' && !(sheet.qty > 0)) ? 'disabled' : ''}>Registrar</button>
+      </div>`;
+  }
+
+  dialog.innerHTML = `<div class="sheet">${body}${sheet.step < 3 ? '<div class="btn-row"><span class="grow"></span><button type="button" class="btn" data-s="close">Cancelar</button></div>' : ''}</div>`;
+}
+
+function saveSheet() {
+  const sub = subInfo(sheet.sub);
+  let favId = sheet.favId;
+  let name = sheet.name.trim();
+  let emoji = null;
+
+  if (!favId && name) {
+    // Si el nombre coincide con una actividad guardada de la misma subcategoría, se vincula (mantiene la racha).
+    const match = store.getState().favorites.find((f) => !f.archived && f.sub === sub.id && f.name.toLowerCase() === name.toLowerCase());
+    if (match) favId = match.id;
+  }
+  if (!favId && sheet.saveFav) {
+    favId = store.upsertFavorite({ sub: sub.id, name: name || sub.name, emoji: sub.emoji }).id;
+  }
+  if (favId) {
+    const fav = store.favoriteById(favId);
+    name = fav.name;
+    emoji = fav.emoji;
+  }
+
+  const { log, mult, reduced } = store.addLog({
+    sub: sub.id, favId, name, emoji, qty: sheet.qty, note: sheet.note.trim(), date: ui.date,
+  });
+  dialog.close();
+  celebrate(log, mult, reduced);
+}
+
+dialog.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-s]');
+  if (!el || !sheet) return;
+  const sub = sheet.sub ? subInfo(sheet.sub) : null;
+  switch (el.dataset.s) {
+    case 'cat':
+      sheet.cat = el.dataset.id;
+      sheet.step = 2;
+      break;
+    case 'sub': {
+      sheet.sub = el.dataset.id;
+      const s2 = subInfo(sheet.sub);
+      sheet.qty = s2.mode === 'time' ? lastQty(sheet.sub) ?? 30 : s2.mode === 'count' ? 1 : 1;
+      sheet.step = 3;
+      break;
+    }
+    case 'back':
+      // Si se eligió una actividad propia dentro del flujo, "volver" solo la deselecciona.
+      if (sheet.favId) {
+        sheet.favId = null;
+        break;
+      }
+      sheet.step -= 1;
+      if (sheet.step === 2 && !sheet.cat) sheet.cat = sub?.cat.id;
+      break;
+    case 'pick-fav':
+      sheet.favId = el.dataset.id;
+      sheet.name = '';
+      sheet.saveFav = false;
+      break;
+    case 'qty':
+      sheet.qty = Number(el.dataset.v);
+      break;
+    case 'inc':
+      sheet.qty = (sheet.qty || 0) + 1;
+      break;
+    case 'dec':
+      sheet.qty = Math.max(1, (sheet.qty || 1) - 1);
+      break;
+    case 'save':
+      saveSheet();
+      return;
+    case 'close':
+      dialog.close();
+      return;
+    default:
+      return;
+  }
+  renderSheet();
+});
+
+// Los campos de texto actualizan el estado sin redibujar (para no perder el foco del teclado).
+dialog.addEventListener('input', (e) => {
+  if (!sheet) return;
+  const { name, value, checked } = e.target;
+  if (name === 'name') sheet.name = value;
+  if (name === 'note') sheet.note = value;
+  if (name === 'saveFav') sheet.saveFav = checked;
+  if (name === 'minutes') {
+    sheet.qty = Math.min(1440, Math.max(0, parseInt(value, 10) || 0));
+    dialog.querySelectorAll('.chip-opt').forEach((b) => b.classList.toggle('on', Number(b.dataset.v) === sheet.qty));
+    const save = dialog.querySelector('[data-s="save"]');
+    if (save) save.disabled = !(sheet.qty > 0);
+  }
+  const preview = dialog.querySelector('.preview');
+  if (preview) preview.innerHTML = previewHTML();
+});
+
+dialog.addEventListener('close', () => {
+  sheet = null;
+});
+
+// ---------- Editor de actividades frecuentes ----------
+
+function openFavEditor(id) {
+  const fav = id ? store.favoriteById(id) : { id: '', sub: 'estudio.curso', name: '', emoji: '' };
+  dialog.innerHTML = `<form class="sheet" id="fav-form">
     <h2>${id ? 'Editar' : 'Nueva'} actividad</h2>
-    <div class="field-row">
-      <label class="field emoji-field"><span>Emoji</span><input name="emoji" value="${esc(a.emoji)}" maxlength="4" required></label>
-      <label class="field grow"><span>Nombre</span><input name="name" value="${esc(a.name)}" maxlength="40" required></label>
-    </div>
-    <label class="field"><span>Tipo</span>
-      <select name="kind"><option value="pos" ${neg ? '' : 'selected'}>Hábito positivo (suma)</option><option value="neg" ${neg ? 'selected' : ''}>Tentación (resta)</option></select>
+    <label class="field"><span>Subcategoría (define el puntaje)</span>
+      <select name="sub">
+        ${CATEGORIES.map((c) => `<optgroup label="${esc(c.emoji)} ${esc(c.name)}">
+          ${c.subs.map((sub) => `<option value="${c.id}.${sub.id}" ${fav.sub === `${c.id}.${sub.id}` ? 'selected' : ''}>${esc(sub.emoji)} ${esc(sub.name)} (${esc(modeLabel({ ...sub }))})</option>`).join('')}
+        </optgroup>`).join('')}
+      </select>
     </label>
-    <fieldset class="effects"><legend>XP por atributo</legend>
-      ${s.attributes.map((at) => `<label class="field"><span>${esc(at.emoji)} ${esc(at.name)}</span>
-        <input type="number" inputmode="numeric" min="0" max="100" name="fx-${esc(at.id)}" value="${Math.abs(a.effects[at.id] || 0) || ''}" placeholder="0"></label>`).join('')}
-    </fieldset>
-    <label class="check"><input type="checkbox" name="repeatable" ${a.repeatable ? 'checked' : ''}> Se puede registrar varias veces al día</label>
-    <label class="check"><input type="checkbox" name="diminishing" ${a.diminishing ? 'checked' : ''}> Rendimiento decreciente (cada repetición vale la mitad)</label>
-    <p class="form-error" hidden></p>
+    <div class="field-row">
+      <label class="field emoji-field"><span>Emoji</span><input name="emoji" value="${esc(fav.emoji)}" maxlength="4" placeholder="${esc(subInfo(fav.sub).emoji)}"></label>
+      <label class="field grow"><span>Nombre</span><input name="name" value="${esc(fav.name)}" maxlength="40" placeholder="Ej.: Curso Databricks" required></label>
+    </div>
     <div class="btn-row">
-      ${id ? '<button type="button" class="btn danger" data-action="archive">Eliminar</button>' : ''}
+      ${id ? '<button type="button" class="btn danger" data-f="archive">Eliminar</button>' : ''}
       <span class="grow"></span>
-      <button type="button" class="btn" data-action="close">Cancelar</button>
+      <button type="button" class="btn" data-f="close">Cancelar</button>
       <button type="submit" class="btn primary">Guardar</button>
     </div>
   </form>`;
   const form = dialog.querySelector('form');
+  const emojiInput = form.elements.emoji;
+  form.elements.sub.addEventListener('change', (e) => {
+    emojiInput.placeholder = subInfo(e.target.value).emoji;
+  });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const f = new FormData(form);
-    const sign = f.get('kind') === 'neg' ? -1 : 1;
-    const effects = {};
-    for (const at of s.attributes) {
-      const v = Math.abs(parseInt(f.get(`fx-${at.id}`), 10) || 0);
-      if (v) effects[at.id] = sign * v;
-    }
-    if (!Object.keys(effects).length) {
-      const err = form.querySelector('.form-error');
-      err.textContent = 'Asigna XP al menos a un atributo.';
-      err.hidden = false;
-      return;
-    }
-    store.upsertActivity({
-      ...a,
-      id: a.id || uid(),
-      emoji: f.get('emoji').trim() || '⭐',
-      name: f.get('name').trim(),
-      effects,
-      repeatable: f.has('repeatable'),
-      diminishing: f.has('diminishing'),
+    const sub = subInfo(f.get('sub'));
+    store.upsertFavorite({
+      ...fav,
+      sub: sub.id,
+      name: f.get('name').trim() || sub.name,
+      emoji: f.get('emoji').trim() || sub.emoji,
     });
     dialog.close();
   });
-  form.querySelector('[data-action="archive"]')?.addEventListener('click', () => {
-    if (confirm(`¿Eliminar “${a.name}”? Tu historial se conserva.`)) {
-      store.archiveActivity(a.id);
+  form.addEventListener('click', (e) => {
+    const action = e.target.closest('[data-f]')?.dataset.f;
+    if (action === 'close') dialog.close();
+    if (action === 'archive' && confirm(`¿Eliminar “${fav.name}”? Tu historial se conserva.`)) {
+      store.archiveFavorite(fav.id);
       dialog.close();
     }
   });
-  form.querySelector('[data-action="close"]').addEventListener('click', () => dialog.close());
   dialog.showModal();
 }
 
@@ -364,7 +623,42 @@ function toast(html, negative = false) {
   toastEl.innerHTML = html;
   toastEl.className = `toast show ${negative ? 'neg' : ''}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastEl.className = 'toast'), 2200);
+  toastTimer = setTimeout(() => (toastEl.className = 'toast'), 2400);
+}
+
+let levelBefore = 0;
+function celebrate(log, mult, reduced) {
+  const s = store.getState();
+  const after = character(s).level;
+  const extra = [
+    mult > 1 ? `🔥${log.streak} ×${mult}` : '',
+    reduced ? 'sobre el óptimo' : '',
+  ].filter(Boolean).join(' · ');
+  const negative = Object.values(log.xp).some((v) => v < 0);
+  toast(`${esc(log.emoji)} ${fxChips(log.xp, attrMap(s))} ${extra ? `<span class="muted small">${extra}</span>` : ''}
+    ${after > levelBefore ? `<div class="levelup">🎉 ¡Subiste a nivel ${after}!</div>` : ''}`, negative);
+  navigator.vibrate?.(15);
+}
+
+function tapFavorite(id) {
+  const fav = store.favoriteById(id);
+  const sub = subInfo(fav.sub);
+  if (sub.mode === 'check') {
+    const existing = store.findLog(fav.id, ui.date);
+    if (existing) {
+      store.removeLog(existing.id);
+      toast(`Deshecho: ${esc(fav.emoji)} ${esc(fav.name)}`);
+      return;
+    }
+  }
+  if (sub.mode === 'time') {
+    openSheet({ step: 3, sub: sub.id, cat: sub.cat.id, favId: fav.id, fromTile: true, qty: lastQty(fav.id) ?? 30 });
+    return;
+  }
+  const { log, mult, reduced } = store.addLog({
+    sub: sub.id, favId: fav.id, name: fav.name, emoji: fav.emoji, qty: 1, date: ui.date,
+  });
+  celebrate(log, mult, reduced);
 }
 
 async function exportData() {
@@ -385,29 +679,8 @@ async function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function logActivity(id) {
-  const s = store.getState();
-  const a = store.activityById(id);
-  const attrs = attrMap(s);
-  const already = s.logs.some((l) => l.activityId === id && l.date === ui.date);
-  if (already && !a.repeatable) {
-    store.removeLastLog(id, ui.date);
-    toast(`Deshecho: ${esc(a.emoji)} ${esc(a.name)}`);
-    return;
-  }
-  const before = character(s).level;
-  const { log, mult, dim } = store.addLog(id, ui.date);
-  const after = character(store.getState()).level;
-  const extra = [
-    mult > 1 ? `🔥${log.streak} ×${mult}` : '',
-    dim < 1 ? `×${dim}` : '',
-  ].filter(Boolean).join(' ');
-  toast(`${esc(a.emoji)} ${fxChips(log.xp, attrs)} ${extra ? `<span class="muted">${extra}</span>` : ''}
-    ${after > before ? `<div class="levelup">🎉 ¡Subiste a nivel ${after}!</div>` : ''}`, isNegative(a));
-  navigator.vibrate?.(15);
-}
-
 document.addEventListener('click', (e) => {
+  if (dialog.contains(e.target)) return;
   const el = e.target.closest('[data-action], .tab');
   if (!el) return;
   if (el.classList.contains('tab')) {
@@ -416,13 +689,18 @@ document.addEventListener('click', (e) => {
     window.scrollTo(0, 0);
     return;
   }
+  levelBefore = character(store.getState()).level;
   const { action, id, step, period } = el.dataset;
   switch (action) {
-    case 'log':
-      return logActivity(id);
-    case 'unlog':
-      store.removeLastLog(id, ui.date);
+    case 'fav':
+      return tapFavorite(id);
+    case 'new-log':
+      return openSheet({});
+    case 'del-log': {
+      const log = store.getState().logs.find((l) => l.id === id);
+      if (log && confirm(`¿Borrar “${log.name}” de este día?`)) store.removeLog(id);
       return;
+    }
     case 'date': {
       const next = Number(step) === 0 ? todayKey() : addDays(ui.date, Number(step));
       if (next <= todayKey()) ui.date = next;
@@ -435,9 +713,8 @@ document.addEventListener('click', (e) => {
     case 'offset':
       ui.offset = Number(step) === 0 ? 0 : Math.min(0, ui.offset + Number(step));
       return render();
-    case 'edit':
-      if (dialog.contains(el)) return;
-      return openEditor(id);
+    case 'edit-fav':
+      return openFavEditor(id);
     case 'export':
       return exportData();
     case 'reset':

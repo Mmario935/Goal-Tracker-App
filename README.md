@@ -18,20 +18,36 @@ Está pensada para usarse en **iPhone** desde la pantalla de inicio. No tiene se
 
 Tu **clase** es la del atributo con más XP, y tu **título** (Novato → Leyenda) depende de tu nivel general.
 
+## Modelo: categoría → subcategoría → actividad
+
+El puntaje no se define por actividad sino por **subcategoría**. Cada una tiene una forma de medirse y un puntaje base:
+
+| Forma de medir | Ejemplo | Cómo se registra |
+|---|---|---|
+| ⏱ Por hora | Estudio › Curso: 🧠 +20/h ⚡ +6/h | Duración (15 min, 30 min, 1 h…) |
+| 🔢 Por unidad | Carrera › Postulación: 🛡️ +12 ⚡ +3 | Cantidad |
+| ✅ Una vez al día | Rutina › Levantarse temprano: ⚡ +10 ❤️ +2 | Un toque |
+
+Hay 7 categorías: **Estudio, Carrera, Deporte, Hogar, Descanso y rutina, Ocio y Tentaciones**, con 25 subcategorías en total. Puedes ver la tabla completa en *Ajustes › Tabla de puntajes* y editarla en [`js/data.js`](js/data.js).
+
+- **Actividad con nombre** (ej. "Curso Databricks" en Estudio › Curso): sirve para lo que quieres seguir como identidad propia. Se guarda en *Mis actividades* para registrarla con un toque y tiene su propia racha.
+- **Registro genérico con nota** (ej. Hogar › Aseo, 45 min, "baño y cocina"): sirve para lo variable. No necesitas una actividad por habitación.
+
 ## Reglas
 
 - Del nivel N al N+1 de un atributo se necesitan `100 × N^1.5` XP. El nivel del personaje usa la XP total con base 300.
+- **Óptimo diario**: cada subcategoría tiene uno (ej. 2 h de videojuegos o 3 h de curso). El tiempo o las unidades por encima valen la mitad. Así el ocio suma sin dominar y no conviene inflar horas.
 - **Rachas** (días seguidos con la misma actividad): 3 días ×1.1 · 7 días ×1.25 · 14 días ×1.35 · 30 días ×1.5.
-- **Rendimiento decreciente** (opcional por actividad): cada repetición del mismo día vale la mitad. Sirve para que el ocio sume sin dominar.
-- **Tentaciones**: actividades que restan XP, como dormir tarde o pedir delivery.
-- Cada registro guarda la XP que otorgó en ese momento, así que editar una actividad no cambia tu historial.
+- **Tentaciones**: subcategorías que restan XP, como dormir tarde, delivery o scroll.
+- Puedes registrar actividades simultáneas (por ejemplo, cocinar mientras escuchas un curso). No se bloquean solapes.
+- Cada registro guarda la XP que otorgó en ese momento, así que cambiar puntajes no altera tu historial.
 
 ## Vistas
 
-- **Hoy**: checklist del día. Tocas una actividad para registrarla, con ‹ › puedes registrar días anteriores y con − deshaces una repetición.
+- **Hoy**: XP y tiempo invertido del día. Tiene la rutina diaria como píldoras de un toque, tus actividades como tarjetas, las tentaciones, el botón **＋ Registrar actividad** (categoría → subcategoría → detalle) y el registro del día con opción de borrar. Con ‹ › puedes registrar días anteriores.
 - **Personaje**: radar de atributos, nivel de cada uno y rachas activas.
-- **Estadísticas**: comparativa diaria, semanal o mensual contra el periodo anterior. Si el periodo está en curso, se compara contra el mismo tramo del anterior. Además muestra la tendencia de los últimos 8 periodos, las actividades más realizadas y un mapa de constancia.
-- **Ajustes**: crear, editar o eliminar actividades, perfil y respaldo (exportar e importar JSON).
+- **Estadísticas**: comparativa diaria, semanal o mensual contra el periodo anterior. Si el periodo está en curso, se compara contra el mismo tramo del anterior. Incluye **tiempo por categoría**, tendencia, lo que más XP te aportó y un mapa de constancia.
+- **Ajustes**: perfil, *Mis actividades*, tabla de puntajes y respaldo (exportar e importar JSON).
 
 ## Probar en local (Windows)
 
@@ -68,8 +84,8 @@ manifest.webmanifest  Metadatos de la PWA
 sw.js                 Service worker (funciona sin conexión)
 css/styles.css        Estilos (mobile-first, áreas seguras del iPhone)
 js/app.js             Vistas, eventos y editor de actividades
-js/data.js            Atributos y actividades iniciales
-js/game.js            XP, niveles, rachas y clase
+js/data.js            Atributos, categorías, subcategorías y puntajes
+js/game.js            XP, óptimo diario, niveles, rachas y clase
 js/stats.js           Rangos de día/semana/mes y agregaciones
 js/store.js           Persistencia en localStorage, exportar e importar
 js/charts.js          Gráfico de radar en SVG
@@ -83,6 +99,6 @@ Si cambias la lista de archivos, sube el número de `CACHE` en `sw.js` para que 
 
 - Misiones diarias y **jefes semanales** (ej.: "10 postulaciones esta semana") con XP extra.
 - Logros y medallas (30 días madrugando, 50 postulaciones…).
-- Editar atributos desde la app.
+- Editar puntajes y crear subcategorías desde la app.
 - Exportar a CSV para analizarlo en Databricks.
 - Sincronización opcional entre dispositivos (Supabase, plan gratuito).
